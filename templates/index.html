@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ping Pong</title>
+  <title>🏓</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -35,21 +39,31 @@
     /* ═══ NAV ═══════════════════════════════════════════════════════════════ */
     nav {
       position: sticky; top: 0; z-index: 100;
-      height: var(--nav-h);
+      height: calc(var(--nav-h) + env(titlebar-area-height, 0px));
       background: #fff;
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center;
-      padding: 0 1.5rem; gap: 1rem;
+      padding: env(titlebar-area-height, 0px) 1.5rem 0 max(1.5rem, calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 0px)));
+      gap: 1rem;
+      -webkit-app-region: drag;
+    }
+    nav button, nav a, nav input, nav select { -webkit-app-region: no-drag; }
+    @supports (padding-top: env(titlebar-area-height)) {
+      #view-home, #view-manage {
+        height: calc(100vh - var(--nav-h) - env(titlebar-area-height, 0px));
+      }
     }
     .brand { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.3px; }
-    .tabs  { display: flex; gap: 0.15rem; background: #eeede8; border-radius: 8px; padding: 3px; }
+    .tabs { display: flex; gap: 0; align-items: stretch; height: 100%; }
     .tab-btn {
-      padding: 0.32rem 1rem; border: none; border-radius: 6px;
+      padding: 0 1.1rem; border: none; background: transparent; cursor: pointer;
       font-size: 0.85rem; font-weight: 500; color: var(--muted);
-      background: transparent; cursor: pointer;
-      transition: background 0.12s, color 0.12s;
+      border-bottom: 2px solid transparent;
+      transition: color 0.12s, border-color 0.12s;
+      margin-bottom: -1px;
     }
-    .tab-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--text); font-weight: 600; border-bottom-color: #1a1a1a; }
     .nav-filter {
       display: flex; gap: 0.12rem;
       background: #eeede8; border-radius: 8px; padding: 3px;
@@ -509,7 +523,7 @@
     .sb-item:hover { background: #fafaf8; }
     .sb-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 0.3rem; }
     .sb-body { flex: 1; min-width: 0; }
-    .sb-desc { font-size: 0.84rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #222; }
+    .sb-desc { font-size: 0.84rem; font-weight: 500; color: #222; word-break: break-word; }
     .sb-item[data-is-deadline="1"] .sb-desc { color: #b91c1c; font-weight: 700; }
     .sb-meta { font-size: 0.74rem; color: var(--muted); display: flex; align-items: center; gap: 0.3rem; margin-top: 0.05rem; }
     .sb-thread-tag { font-size: 0.68rem; font-weight: 600; padding: 0.06rem 0.35rem; border-radius: 4px; }
@@ -643,15 +657,32 @@
     .effort-pick-btn[data-level="intense"]:hover,
     .effort-pick-btn[data-level="intense"].active  { background: #fff0e0; color: #c05800; border-color: #f0c080; }
 
-    /* date input inside the form */
-    input[type="date"].tc-date-input {
+    /* Flatpickr overrides */
+    .flatpickr-wrapper { width: 100%; }
+    .flatpickr-input.form-control, .flatpickr-input {
       width: 100%; padding: 0.45rem 0.65rem;
       border: 1.5px solid #e0ddd8; border-radius: 8px;
       font-size: 0.82rem; font-family: inherit;
       background: #fff; color: var(--text); outline: none;
-      transition: border-color 0.12s;
+      transition: border-color 0.12s; cursor: pointer;
     }
-    input[type="date"].tc-date-input:focus { border-color: var(--accent, #4a90e2); }
+    .flatpickr-input:focus { border-color: var(--accent, #4a90e2); }
+    .flatpickr-calendar {
+      font-family: inherit; border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.13);
+      border: 1.5px solid var(--border);
+    }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover {
+      background: #4a90e2; border-color: #4a90e2;
+    }
+    .flatpickr-day:hover { background: #f0efe9; }
+    .flatpickr-months .flatpickr-month { border-radius: 10px 10px 0 0; }
+    .flatpickr-current-month { font-size: 0.95rem; font-weight: 600; }
+    .flatpickr-weekday { font-size: 0.72rem; font-weight: 600; color: #aaa; }
+    .flatpickr-day { border-radius: 7px; font-size: 0.82rem; }
+    .flatpickr-day.today { border-color: #4a90e2; }
+    /* hide the original input — flatpickr creates a visible one */
+    input[type="date"].tc-date-input { display: none !important; }
 
     /* ═══ DEADLINE ══════════════════════════════════════════════════════════ */
     .tc-deadline-flag {
@@ -967,7 +998,7 @@
                   </div>
                   <input type="date" id="due-edit-date-{{ task.id }}" class="tc-date-input" style="display:none"
                          oninput="document.getElementById('due-edit-{{ task.id }}').value = this.value" />
-                  <button type="button" class="deadline-toggle-btn {% if task.is_deadline %}active{% endif %}" onclick="toggleDeadline(this)">! Mark as deadline</button>
+                  <button type="button" class="deadline-toggle-btn {% if task.is_deadline %}active{% endif %}" onclick="toggleDeadline(this)">Mark as deadline</button>
                   <input type="hidden" name="is_deadline" value="{{ '1' if task.is_deadline else '0' }}" />
                   <div class="add-btns">
                     <button class="submit" type="submit">Save →</button>
@@ -1030,7 +1061,7 @@
               </div>
               <input type="date" id="me-date-{{ td.thread.id }}" class="tc-date-input" style="display:none"
                      oninput="document.getElementById('due-hidden-{{ td.thread.id }}').value = this.value" />
-              <button type="button" class="deadline-toggle-btn" onclick="toggleDeadline(this)">! Mark as deadline</button>
+              <button type="button" class="deadline-toggle-btn" onclick="toggleDeadline(this)">Mark as deadline</button>
               <input type="hidden" name="is_deadline" value="0" />
               <div class="add-btns">
                 <button class="submit" type="submit">Add →</button>
@@ -1330,12 +1361,19 @@
   })();
 
   /* ── add-item panel ── */
+  function _setAddBtn(btn, open) {
+    if (!btn) return;
+    const path = btn.querySelector('path');
+    if (path) path.setAttribute('d', open ? 'M1 5.5h9' : 'M5.5 1v9M1 5.5h9');
+  }
   function toggleAdd(threadId, btn) {
     const panel = document.getElementById('ap-' + threadId);
     const isOpen = panel.classList.contains('open');
     document.querySelectorAll('.tc-add-panel').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.tc-add-btn').forEach(b => _setAddBtn(b, false));
     if (!isOpen) {
       panel.classList.add('open');
+      _setAddBtn(btn, true);
       const inp = panel.querySelector('input[name="description"]');
       if (inp) inp.focus();
       const sel = panel.querySelector('select[name="person_id"]');
@@ -1401,14 +1439,15 @@
     const btns = panel.querySelectorAll('.due-type-btn');
     btns.forEach(b => b.classList.remove('active'));
     const dateInput = document.getElementById('due-edit-date-' + id);
-    dateInput.style.display = 'none';
+    _fpWrap(dateInput).style.display = 'none';
     dateInput.required = false;
     if (due === 'ANYTIME') {
       btns[1].classList.add('active');
     } else if (due !== 'ASAP') {
       btns[2].classList.add('active');
-      dateInput.style.display = '';
+      _fpWrap(dateInput).style.display = '';
       dateInput.value = due;
+      if (dateInput._flatpickr) dateInput._flatpickr.setDate(due, false);
     } else {
       btns[0].classList.add('active');
     }
@@ -1431,11 +1470,11 @@
     const dateInput = document.getElementById('due-edit-date-' + id);
     const hidden    = document.getElementById('due-edit-' + id);
     if (type === 'date') {
-      dateInput.style.display = '';
+      _fpWrap(dateInput).style.display = '';
       dateInput.required = true;
       hidden.value = dateInput.value || '';
     } else {
-      dateInput.style.display = 'none';
+      _fpWrap(dateInput).style.display = 'none';
       dateInput.required = false;
       hidden.value = type;
     }
@@ -1519,9 +1558,10 @@
     sidebar.querySelectorAll('.sb-item').forEach(el => {
       const meOk = !isMe || el.dataset.isMe === 'true';
       const effortOk = effortLevel === 'all' || el.dataset.effort === effortLevel;
+      const threadOk = _openThreads.has(el.dataset.threadId);
       const visible = _sidebarDeadlineOnly
-        ? el.dataset.isDeadline === '1' && meOk && effortOk
-        : _openThreads.has(el.dataset.threadId) && meOk && effortOk;
+        ? el.dataset.isDeadline === '1' && threadOk && meOk && effortOk
+        : threadOk && meOk && effortOk;
       el.style.display = visible ? '' : 'none';
     });
     sidebar.querySelectorAll('.sb-group').forEach(g => {
@@ -1683,11 +1723,11 @@
     const dateInput = document.getElementById('me-date-' + tid);
     const hidden    = document.getElementById('due-hidden-' + tid);
     if (type === 'date') {
-      dateInput.style.display = '';
+      _fpWrap(dateInput).style.display = '';
       dateInput.required = true;
       hidden.value = dateInput.value || '';
     } else {
-      dateInput.style.display = 'none';
+      _fpWrap(dateInput).style.display = 'none';
       dateInput.required = false;
       hidden.value = type;
     }
@@ -1823,6 +1863,24 @@ function handlePersonSel(sel) {
         });
       },
     });
+  });
+
+  /* ── Flatpickr date pickers ── */
+  function _fpWrap(el) {
+    return el.closest('.flatpickr-wrapper') || el;
+  }
+  document.querySelectorAll('.tc-date-input').forEach(el => {
+    flatpickr(el, {
+      dateFormat: 'Y-m-d',
+      disableMobile: true,
+      onChange(_, dateStr) {
+        el.value = dateStr;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      },
+    });
+    // Start hidden — the wrapper Flatpickr creates must also be hidden
+    const wrap = el.closest('.flatpickr-wrapper');
+    if (wrap) wrap.style.display = 'none';
   });
 </script>
 </body>

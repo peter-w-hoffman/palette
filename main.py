@@ -6,8 +6,9 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 from typing import Optional
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse, Response
 from fastapi.templating import Jinja2Templates
+from PIL import Image, ImageDraw, ImageFont
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -434,6 +435,41 @@ def _due_sidebar(conn, color_map, today):
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
+
+_icon_cache = None
+
+@app.get("/icon-192.png")
+async def app_icon():
+    global _icon_cache
+    if _icon_cache is None:
+        img = Image.new("RGBA", (192, 192), (0, 0, 0, 0))
+        d   = ImageDraw.Draw(img)
+        fnt = ImageFont.truetype("/System/Library/Fonts/Apple Color Emoji.ttc", 160)
+        bb  = d.textbbox((0, 0), "🏓", font=fnt, embedded_color=True)
+        x   = (192 - (bb[2] - bb[0])) // 2 - bb[0]
+        y   = (192 - (bb[3] - bb[1])) // 2 - bb[1]
+        d.text((x, y), "🏓", font=fnt, embedded_color=True)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        _icon_cache = buf.getvalue()
+    return Response(content=_icon_cache, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/manifest.json")
+async def manifest():
+    return JSONResponse({
+        "name": "🏓",
+        "short_name": "🏓",
+        "start_url": "/",
+        "display": "standalone",
+        "display_override": ["window-controls-overlay", "standalone"],
+        "background_color": "#f0efe9",
+        "theme_color": "#f0efe9",
+        "icons": [
+            {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"}
+        ]
+    })
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, tab: str = "home"):
