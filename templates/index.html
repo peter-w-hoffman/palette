@@ -77,8 +77,8 @@
     .nav-filter-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .nav-spacer { flex: 1; }
     .nav-search {
-      flex: 1; max-width: 260px; position: relative;
-      display: flex; align-items: center; margin: 0 1rem;
+      width: 200px; flex-shrink: 0; position: relative;
+      display: flex; align-items: center; margin-right: 0.75rem;
     }
     .nav-search input {
       width: 100%; border: 1px solid var(--border); border-radius: 20px;
@@ -838,12 +838,13 @@
     <button class="nav-effort-btn neb-standard"    id="ef-standard" onclick="setGlobalEffortFilter('standard',this)">Standard</button>
     <button class="nav-effort-btn neb-intense"     id="ef-intense"  onclick="setGlobalEffortFilter('intense',this)">Intense</button>
   </div>
+  <div class="nav-spacer"></div>
   <div class="nav-search">
     <svg class="nav-search-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
       <circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.5"/>
       <path d="M8 8l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
-    <input type="text" id="search-input" placeholder="Search tasks or people…" autocomplete="off"
+    <input type="text" id="search-input" placeholder="Search…" autocomplete="off"
            oninput="_doSearch(this.value)"
            onkeydown="if(event.key==='Escape')_clearSearchInput()" />
     <button id="search-clear" class="nav-search-clear" onclick="_clearSearchInput()" style="display:none">×</button>
@@ -1920,6 +1921,8 @@ function handlePersonSel(sel) {
     _detail.querySelectorAll('.thread-detail-view').forEach(v => v.style.display = '');
 
     document.querySelectorAll('.thread-detail-view').forEach(view => {
+      const threadName = (view.querySelector('.tdv-name')?.textContent || '').toLowerCase();
+      const threadMatch = threadName.includes(q);
       const tasks = [...view.querySelectorAll('.tc-task-wrap')];
       const matchingTasks = new Set(tasks.filter(w => {
         const desc = (w.querySelector('.tc-desc')?.textContent || '').toLowerCase();
@@ -1927,7 +1930,7 @@ function handlePersonSel(sel) {
         return desc.includes(q) || person.includes(q);
       }));
 
-      if (matchingTasks.size === 0) {
+      if (!threadMatch && matchingTasks.size === 0) {
         if (_detail.contains(view)) view.style.display = 'none';
         return;
       }
@@ -1937,7 +1940,7 @@ function handlePersonSel(sel) {
         _searchOpenedViews.push(view);
       }
 
-      tasks.forEach(w => { w.style.opacity = matchingTasks.has(w) ? '' : '0.2'; });
+      tasks.forEach(w => { w.style.opacity = (threadMatch || matchingTasks.has(w)) ? '' : '0.2'; });
     });
 
     _syncEmptyState();
