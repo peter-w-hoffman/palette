@@ -1207,7 +1207,7 @@
       <div class="mlist">
         {% for p in people %}
         <div class="mrow" id="prow-{{ p.id }}">
-          <span style="font-size:1.1rem;line-height:1;flex-shrink:0">{{ p.emoji }}</span>
+          <span id="pemoji-{{ p.id }}" style="font-size:1.1rem;line-height:1;flex-shrink:0">{{ p.emoji }}</span>
           <div class="mrow-label" id="plabel-{{ p.id }}">{{ p.name }}</div>
           <form class="mrow-editform" id="pedit-{{ p.id }}"
                 method="post" action="/people/{{ p.id }}/update">
@@ -1448,7 +1448,7 @@
 
   /* ── manage inline edit ── */
   function startEdit(pfx, id) {
-    ['label','right'].forEach(p => {
+    ['label','right','emoji'].forEach(p => {
       const el = document.getElementById(pfx + p + '-' + id);
       if (el) el.style.display = 'none';
     });
@@ -1458,7 +1458,7 @@
     if (inp) inp.focus();
   }
   function cancelEdit(pfx, id) {
-    ['label','right'].forEach(p => {
+    ['label','right','emoji'].forEach(p => {
       const el = document.getElementById(pfx + p + '-' + id);
       if (el) el.style.display = '';
     });
