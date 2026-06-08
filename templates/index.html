@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🏓</title>
+  <title>Ping Pong</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <style>
@@ -22,37 +25,33 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       height: 100vh; overflow: hidden;
+      padding-top: calc(var(--nav-h) + env(titlebar-area-height, 0px));
     }
     #view-home {
-      height: calc(100vh - var(--nav-h));
+      height: calc(100vh - var(--nav-h) - env(titlebar-area-height, 0px));
       overflow-y: auto;
     }
     #view-manage {
-      height: calc(100vh - var(--nav-h));
+      height: calc(100vh - var(--nav-h) - env(titlebar-area-height, 0px));
       overflow-y: auto;
     }
 
     /* ═══ NAV ═══════════════════════════════════════════════════════════════ */
     nav {
-      position: sticky; top: 0; z-index: 100;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       height: calc(var(--nav-h) + env(titlebar-area-height, 0px));
       background: #fff;
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center;
-      padding: env(titlebar-area-height, 0px) 1.5rem 0 max(1.5rem, calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 0px)));
+      padding: env(titlebar-area-height, 0px) 1.5rem 0 max(1.5rem, env(titlebar-area-x, 0px));
       gap: 1rem;
       -webkit-app-region: drag;
     }
     nav button, nav a, nav input, nav select { -webkit-app-region: no-drag; }
-    @supports (padding-top: env(titlebar-area-height)) {
-      #view-home, #view-manage {
-        height: calc(100vh - var(--nav-h) - env(titlebar-area-height, 0px));
-      }
-    }
     .brand { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.3px; }
     .tabs { display: flex; gap: 0; align-items: stretch; height: 100%; }
     .tab-btn {
@@ -488,10 +487,14 @@
       display: flex; align-items: center; justify-content: space-between;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
-    .sidebar.deadline-mode .sidebar-title {
+    .sidebar.deadline-mode {
       background: #fff5f5;
-      border-bottom-color: #fca5a5;
-      color: #b91c1c;
+      border-color: #fca5a5;
+    }
+    .sidebar.deadline-mode .sidebar-title {
+      background: #fecaca;
+      border-bottom-color: #f87171;
+      color: #991b1b;
     }
     .sidebar-actions { display: flex; align-items: center; gap: 0.5rem; }
     .sb-export {
@@ -793,7 +796,9 @@
     .nav-effort-label {
       font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.06em; color: #bbb;
+      cursor: pointer; user-select: none;
     }
+    .nav-effort-label:hover { color: #999; }
     .nav-effort-btn {
       font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
       padding: 0.26rem 0.65rem; border-radius: 20px; border: 1.5px solid transparent; cursor: pointer;
@@ -821,22 +826,30 @@
       .thread-nav { position: static; max-height: none; }
     }
   </style>
+  <script>
+    if (['standalone','window-controls-overlay'].some(m =>
+      window.matchMedia('(display-mode: ' + m + ')').matches)) {
+      document.title = ' ';
+    }
+  </script>
 </head>
 <body>
 
 <!-- NAV -->
 <nav>
-  <div class="brand"><span style="font-size:1.35rem">🏓</span> Ping Pong</div>
+  <div class="brand"><span style="font-size:1.35rem">🏓</span></div>
   <div class="nav-filter">
     <button class="nav-filter-btn active" id="gf-all" onclick="setGlobalFilter('all')">All</button>
     <button class="nav-filter-btn" id="gf-me" onclick="setGlobalFilter('me')">Me</button>
   </div>
   <div id="nav-effort-bar" class="nav-effort-wrap">
-    <span class="nav-effort-label">Effort</span>
-    <button class="nav-effort-btn neb-all active"  id="ef-all"      onclick="setGlobalEffortFilter('all',this)">All</button>
-    <button class="nav-effort-btn neb-mindless"    id="ef-mindless" onclick="setGlobalEffortFilter('mindless',this)">Mindless</button>
-    <button class="nav-effort-btn neb-standard"    id="ef-standard" onclick="setGlobalEffortFilter('standard',this)">Standard</button>
-    <button class="nav-effort-btn neb-intense"     id="ef-intense"  onclick="setGlobalEffortFilter('intense',this)">Intense</button>
+    <span class="nav-effort-label" id="effort-label" onclick="toggleEffortExpanded()">Effort ›</span>
+    <div id="effort-btns" style="display:none;align-items:center;gap:0.4rem;display:none">
+      <button class="nav-effort-btn neb-all active"  id="ef-all"      onclick="setGlobalEffortFilter('all',this)">All</button>
+      <button class="nav-effort-btn neb-mindless"    id="ef-mindless" onclick="setGlobalEffortFilter('mindless',this)">Mindless</button>
+      <button class="nav-effort-btn neb-standard"    id="ef-standard" onclick="setGlobalEffortFilter('standard',this)">Standard</button>
+      <button class="nav-effort-btn neb-intense"     id="ef-intense"  onclick="setGlobalEffortFilter('intense',this)">Intense</button>
+    </div>
   </div>
   <div class="nav-spacer"></div>
   <div class="nav-search">
@@ -919,7 +932,7 @@
           <rect x="4" y="15" width="18" height="3" rx="1.5" fill="currentColor"/>
           <rect x="4" y="22" width="21" height="3" rx="1.5" fill="currentColor"/>
         </svg>
-        <span>Select a thread</span>
+        <span>{% if threads_data %}Select a thread{% else %}Create a thread to get started{% endif %}</span>
       </div>
 
       <!-- new-thread form (shown in middle when adding) -->
@@ -1421,6 +1434,7 @@
       views.sort((a, b) => b.offsetHeight - a.offsetHeight);
       const ntForm = document.getElementById('nt-form');
       views.forEach(v => _detail.insertBefore(v, ntForm));
+      _saveOpenThreads();
     });
   }
 
@@ -1557,6 +1571,7 @@
       _fpWrap(dateInput).style.display = '';
       dateInput.required = true;
       hidden.value = dateInput.value || '';
+      if (dateInput._flatpickr) dateInput._flatpickr.open();
     } else {
       _fpWrap(dateInput).style.display = 'none';
       dateInput.required = false;
@@ -1595,9 +1610,10 @@
       document.querySelectorAll('.tc-task-wrap, .tc-group').forEach(el => el.style.display = '');
       document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = 'none');
       setGlobalEffortFilter('all', document.getElementById('ef-all'));
-
+      // collapse effort panel when leaving Me mode
+      if (_effortExpanded) toggleEffortExpanded();
     } else {
-      document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = '');
+      document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = _effortExpanded ? '' : 'none');
       document.querySelectorAll('.tc-task-wrap').forEach(el => {
         el.style.display = (el.dataset.isMe === 'true') ? '' : 'none';
       });
@@ -1608,6 +1624,24 @@
     updateThreadCounts(mode);
     _updateSidebar();
     try { localStorage.setItem('pp-gf', mode); } catch(e) {}
+  }
+
+  let _effortExpanded = false;
+  function toggleEffortExpanded() {
+    _effortExpanded = !_effortExpanded;
+    document.getElementById('effort-btns').style.display = _effortExpanded ? 'flex' : 'none';
+    document.getElementById('effort-label').textContent = _effortExpanded ? 'Effort ‹' : 'Effort ›';
+    const inMe = document.getElementById('gf-me').classList.contains('active');
+    document.querySelectorAll('[data-effort-tag]').forEach(el => {
+      el.style.display = (_effortExpanded && inMe) ? '' : 'none';
+    });
+    if (!_effortExpanded) {
+      document.querySelectorAll('#nav-effort-bar .nav-effort-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('ef-all').classList.add('active');
+      setGlobalEffortFilter('all', null);
+      try { localStorage.removeItem('pp-effort-level'); } catch(e) {}
+    }
+    try { localStorage.setItem('pp-effort-expanded', _effortExpanded ? '1' : '0'); } catch(e) {}
   }
 
   function setGlobalEffortFilter(level, btn) {
@@ -1626,11 +1660,18 @@
     });
     _updateSidebar();
     _sortThreadsByHeight();
+    try { localStorage.setItem('pp-effort-level', level); } catch(e) {}
   }
   // Effort tags hidden by default; shown only in Me mode
   document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = 'none');
   const _storedGf = (() => { try { return localStorage.getItem('pp-gf'); } catch(e) { return null; } })();
   if (_storedGf) setGlobalFilter(_storedGf);
+  if (localStorage.getItem('pp-effort-expanded') === '1') toggleEffortExpanded();
+  const _storedEffortLevel = (() => { try { return localStorage.getItem('pp-effort-level'); } catch(e) { return null; } })();
+  if (_storedEffortLevel && _storedEffortLevel !== 'all') {
+    const btn = document.getElementById('ef-' + _storedEffortLevel);
+    if (btn) setGlobalEffortFilter(_storedEffortLevel, btn);
+  }
 
   /* ── sidebar: filter by selected threads + global me/all ── */
   function _updateSidebar() {
@@ -1811,6 +1852,7 @@
       _fpWrap(dateInput).style.display = '';
       dateInput.required = true;
       hidden.value = dateInput.value || '';
+      if (dateInput._flatpickr) dateInput._flatpickr.open();
     } else {
       _fpWrap(dateInput).style.display = 'none';
       dateInput.required = false;
@@ -1911,6 +1953,7 @@ function handlePersonSel(sel) {
   function _doSearch(query) {
     const q = query.trim().toLowerCase();
     document.getElementById('search-clear').style.display = q ? '' : 'none';
+    try { q ? localStorage.setItem('pp-search', query.trim()) : localStorage.removeItem('pp-search'); } catch(e) {}
     if (!q) { _exitSearch(); return; }
 
     if (document.getElementById('view-home').style.display === 'none') switchTab('home');
@@ -1965,8 +2008,17 @@ function handlePersonSel(sel) {
     const inp = document.getElementById('search-input');
     inp.value = '';
     document.getElementById('search-clear').style.display = 'none';
+    try { localStorage.removeItem('pp-search'); } catch(e) {}
     _exitSearch();
   }
+
+  // Restore search after all search state is initialized
+  (() => {
+    try {
+      const q = localStorage.getItem('pp-search');
+      if (q) { document.getElementById('search-input').value = q; _doSearch(q); }
+    } catch(e) {}
+  })();
 
   /* ── drag-and-drop: open thread cards ── */
   Sortable.create(_detail, {

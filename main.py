@@ -184,6 +184,7 @@ def _create_tasks_table(conn):
 
 def _seed_defaults():
     with get_conn() as conn:
+        conn.execute("INSERT OR IGNORE INTO people (name, emoji) SELECT 'Me', '🐒' WHERE NOT EXISTS (SELECT 1 FROM people WHERE LOWER(name) = 'me')")
         conn.execute("UPDATE people SET emoji = '🐒' WHERE LOWER(name) = 'me'")
 
 
@@ -463,7 +464,7 @@ async def manifest():
         "short_name": "🏓",
         "start_url": "/",
         "display": "standalone",
-        "display_override": ["window-controls-overlay", "standalone"],
+        "display_override": ["window-controls-overlay"],
         "background_color": "#f0efe9",
         "theme_color": "#f0efe9",
         "icons": [
@@ -776,7 +777,8 @@ async def export_csv():
             row["notes"] or "",
         ])
 
-    filename = f"pingpong_{today.isoformat()}.csv"
+    from datetime import datetime
+    filename = f"pingpong_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
     output.seek(0)
     return StreamingResponse(
         iter([output.getvalue()]),
