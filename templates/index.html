@@ -1559,7 +1559,7 @@
   function setGlobalFilter(mode) {
     document.getElementById('gf-all').classList.toggle('active', mode === 'all');
     document.getElementById('gf-me').classList.toggle('active', mode === 'me');
-    document.getElementById('nav-effort-bar').classList.toggle('visible', mode === 'me');
+    document.getElementById('nav-effort-bar').classList.toggle('visible', mode === 'me' && document.getElementById('btn-home').classList.contains('active'));
     if (mode === 'all') {
       document.querySelectorAll('.tc-task-wrap, .tc-group').forEach(el => el.style.display = '');
       document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = 'none');
