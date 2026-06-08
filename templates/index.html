@@ -76,6 +76,24 @@
     }
     .nav-filter-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .nav-spacer { flex: 1; }
+    .nav-search {
+      flex: 1; max-width: 260px; position: relative;
+      display: flex; align-items: center; margin: 0 1rem;
+    }
+    .nav-search input {
+      width: 100%; border: 1px solid var(--border); border-radius: 20px;
+      padding: 0.3rem 1.6rem 0.3rem 1.9rem; font-size: 0.82rem;
+      background: #f5f4f0; outline: none; color: var(--text);
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .nav-search input:focus { border-color: #bbb; background: #fff; }
+    .nav-search input::placeholder { color: #bbb; }
+    .nav-search-icon { position: absolute; left: 0.6rem; color: #c0bfba; pointer-events: none; }
+    .nav-search-clear {
+      position: absolute; right: 0.5rem; color: #bbb; background: transparent;
+      border: none; cursor: pointer; font-size: 1.05rem; line-height: 1; padding: 0;
+    }
+    .nav-search-clear:hover { color: var(--text); }
 
     /* ═══ HOME LAYOUT ════════════════════════════════════════════════════════ */
     .home-layout {
@@ -820,7 +838,16 @@
     <button class="nav-effort-btn neb-standard"    id="ef-standard" onclick="setGlobalEffortFilter('standard',this)">Standard</button>
     <button class="nav-effort-btn neb-intense"     id="ef-intense"  onclick="setGlobalEffortFilter('intense',this)">Intense</button>
   </div>
-  <div class="nav-spacer"></div>
+  <div class="nav-search">
+    <svg class="nav-search-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 8l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <input type="text" id="search-input" placeholder="Search tasks or people…" autocomplete="off"
+           oninput="_doSearch(this.value)"
+           onkeydown="if(event.key==='Escape')_clearSearchInput()" />
+    <button id="search-clear" class="nav-search-clear" onclick="_clearSearchInput()" style="display:none">×</button>
+  </div>
   <div class="tabs">
     <button class="tab-btn" id="btn-home"   onclick="switchTab('home')">Home</button>
     <button class="tab-btn" id="btn-manage" onclick="switchTab('manage')">Manage</button>
@@ -990,7 +1017,8 @@
             <div class="tc-group-label {% if group.is_now %}is-now{% endif %}">{{ group.label }}</div>
             {% for task in group.tasks %}
             <div class="tc-task-wrap" id="twrap-{{ task.id }}" data-id="{{ task.id }}"
-                 data-is-me="{{ 'true' if task.person_id == me_id else 'false' }}">
+                 data-is-me="{{ 'true' if task.person_id == me_id else 'false' }}"
+                 data-person="{{ (task.person_name or '') | lower }}">
               <div class="tc-row" id="tk-row-{{ task.id }}">
                 <span class="tc-drag-handle" title="Drag to reorder">⠿</span>
                 <div class="tc-notes-indicator {% if task.notes %}has-notes{% endif %}" id="tind-{{ task.id }}"></div>
@@ -1332,6 +1360,7 @@
     document.getElementById('nav-effort-bar').classList.toggle(
       'visible', name === 'home' && document.getElementById('gf-me').classList.contains('active'));
     try { localStorage.setItem('pp-tab', name); } catch(e) {}
+    if (name === 'manage') _clearSearchInput && _clearSearchInput();
   }
   const stored = (() => { try { return localStorage.getItem('pp-tab'); } catch(e) { return null; } })();
   switchTab(stored || 'home');
@@ -1343,8 +1372,9 @@
   const _pool   = document.getElementById('thread-detail-pool');
 
   function _syncEmptyState() {
+    const hasVisible = [..._detail.querySelectorAll('.thread-detail-view')].some(v => v.style.display !== 'none');
     document.getElementById('thread-detail-empty').style.display =
-      _openThreads.size === 0 && document.getElementById('nt-form').style.display === 'none' ? '' : 'none';
+      !hasVisible && document.getElementById('nt-form').style.display === 'none' ? '' : 'none';
   }
   function _saveOpenThreads() {
     const domOrder = [..._detail.querySelectorAll('.thread-detail-view')].map(el => el.id.replace('td-view-',''));
@@ -1872,6 +1902,67 @@ function handlePersonSel(sel) {
       if (meta) meta.textContent = ids.size + ' thread' + (ids.size !== 1 ? 's' : '');
     }
     _updateGroupStates();
+  }
+
+  /* ── search ── */
+  let _searchOpenedViews = [];
+
+  function _doSearch(query) {
+    const q = query.trim().toLowerCase();
+    document.getElementById('search-clear').style.display = q ? '' : 'none';
+    if (!q) { _exitSearch(); return; }
+
+    if (document.getElementById('view-home').style.display === 'none') switchTab('home');
+
+    // Reset state from previous search pass
+    _searchOpenedViews.forEach(v => { v.style.display = ''; _pool.appendChild(v); });
+    _searchOpenedViews = [];
+    _detail.querySelectorAll('.thread-detail-view').forEach(v => v.style.display = '');
+
+    document.querySelectorAll('.thread-detail-view').forEach(view => {
+      const tasks = [...view.querySelectorAll('.tc-task-wrap')];
+      const matchingTasks = new Set(tasks.filter(w => {
+        const desc = (w.querySelector('.tc-desc')?.textContent || '').toLowerCase();
+        const person = (w.dataset.person || '').toLowerCase();
+        return desc.includes(q) || person.includes(q);
+      }));
+
+      if (matchingTasks.size === 0) {
+        if (_detail.contains(view)) view.style.display = 'none';
+        return;
+      }
+
+      if (!_detail.contains(view)) {
+        _detail.appendChild(view);
+        _searchOpenedViews.push(view);
+      }
+
+      tasks.forEach(w => { w.style.opacity = matchingTasks.has(w) ? '' : '0.2'; });
+    });
+
+    _syncEmptyState();
+    _sortThreadsByHeight();
+  }
+
+  function _exitSearch() {
+    _searchOpenedViews.forEach(v => {
+      v.style.display = '';
+      v.querySelectorAll('.tc-task-wrap').forEach(w => w.style.opacity = '');
+      _pool.appendChild(v);
+    });
+    _searchOpenedViews = [];
+    _detail.querySelectorAll('.thread-detail-view').forEach(v => {
+      v.style.display = '';
+      v.querySelectorAll('.tc-task-wrap').forEach(w => w.style.opacity = '');
+    });
+    _syncEmptyState();
+  }
+
+  function _clearSearchInput() {
+    const inp = document.getElementById('search-input');
+    inp.value = '';
+    document.getElementById('search-clear').style.display = 'none';
+    _exitSearch();
   }
 
   /* ── drag-and-drop: open thread cards ── */
