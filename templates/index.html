@@ -799,7 +799,7 @@
       <div id="tn-groups">
       <div id="nav-group-create" style="display:none; padding:0.45rem 0.8rem; border-bottom:1px solid #f2f1ec;">
         <form method="post" action="/groups" style="display:flex; flex-direction:column; gap:0.3rem;">
-          <input id="nav-group-input" name="name" type="text" placeholder="Group name…" required autocomplete="off" maxlength="18"
+          <input id="nav-group-input" name="name" type="text" placeholder="Group name…" required autocomplete="off" maxlength="27"
                  style="padding:0.32rem 0.5rem; border:1px solid #ddd; border-radius:6px; font-size:0.8rem; outline:none;"
                  onkeydown="if(event.key==='Escape'){hideNavGroupForm()}" />
           <div style="display:flex; gap:0.3rem;">
@@ -832,7 +832,7 @@
               </div>
             </div>
             <form class="gp-rename" method="post" action="/groups/{{ g.group.id }}/update">
-              <input name="name" value="{{ g.group.name }}" required maxlength="18"
+              <input name="name" value="{{ g.group.name }}" required maxlength="27"
                      onkeydown="if(event.key==='Escape'){event.preventDefault();toggleGroupEdit({{ g.group.id }})}" />
               <button class="btn-mini" type="submit">Save</button>
             </form>
@@ -898,7 +898,7 @@
       <div id="nt-form" style="display:none; background: var(--card); border: 1.5px solid #4a90e2; border-radius: 13px; padding: 1.25rem 1.5rem;">
         <form method="post" action="/threads" style="display:flex; flex-direction:column; gap:0.6rem; max-width:400px;">
           <div style="font-size:0.85rem; font-weight:600; color: #4a90e2;">New Thread</div>
-          <input name="name" type="text" placeholder="Thread name…" required autocomplete="off" maxlength="18"
+          <input name="name" type="text" placeholder="Thread name…" required autocomplete="off" maxlength="27"
                  style="padding:0.5rem 0.7rem; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; outline:none;" />
           <div style="display:flex; gap:0.4rem;">
             <button type="submit" style="flex:1; padding:0.42rem; background:#1a1a1a; color:#fff; border:none; border-radius:7px; font-size:0.86rem; font-weight:500; cursor:pointer;">Create</button>
@@ -992,7 +992,7 @@
         </div>
 
         <form class="tdv-edit" id="tdv-edit-{{ td.thread.id }}" method="post" action="/threads/{{ td.thread.id }}/update" style="display:none">
-          <input name="name" value="{{ td.thread.name }}" required maxlength="18"
+          <input name="name" value="{{ td.thread.name }}" required maxlength="27"
                  onkeydown="if(event.key==='Escape'){event.preventDefault();cancelThreadEdit({{ td.thread.id }})}" />
           <button class="btn-mini" type="submit">Save</button>
           <button class="btn-mini" type="button" onclick="cancelThreadEdit({{ td.thread.id }})">✕</button>
