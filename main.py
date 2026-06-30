@@ -83,17 +83,17 @@ def init_db():
         ):
             conn.execute("UPDATE groups SET color=? WHERE id=?",
                          (GROUP_COLORS[i % len(GROUP_COLORS)], grp["id"]))
-        # Enforce one group per thread: keep only the earliest membership per thread.
-        conn.execute("""
-            DELETE FROM group_threads
-            WHERE rowid NOT IN (SELECT MIN(rowid) FROM group_threads GROUP BY thread_id)
-        """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS group_threads (
                 group_id  INTEGER NOT NULL REFERENCES groups(id),
                 thread_id INTEGER NOT NULL REFERENCES threads(id),
                 PRIMARY KEY (group_id, thread_id)
             )
+        """)
+        # Enforce one group per thread: keep only the earliest membership per thread.
+        conn.execute("""
+            DELETE FROM group_threads
+            WHERE rowid NOT IN (SELECT MIN(rowid) FROM group_threads GROUP BY thread_id)
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
