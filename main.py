@@ -88,8 +88,27 @@ def init_db():
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS app_state (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
         # Grandfather any NULL due_dates as ANYTIME.
         conn.execute("UPDATE tasks SET due_date = 'ANYTIME' WHERE due_date IS NULL")
+
+
+def _get_state(conn, key, default=""):
+    row = conn.execute("SELECT value FROM app_state WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def _set_state(conn, key, value):
+    conn.execute(
+        "INSERT INTO app_state (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
 
 
 def _pick_group_emoji(conn):
@@ -291,12 +310,15 @@ async def index(request: Request):
         name_map     = {td["thread"]["id"]: td["thread"]["name"] for td in threads_data}
         due_upper, due_anytime = _due_sidebar(conn, color_map, name_map, today)
         groups_data  = _groups_with_threads(conn)
+        today_note   = _get_state(conn, "today", "")
     return templates.TemplateResponse(request, "index.html", {
         "threads_data": threads_data,
         "due_upper":    due_upper,
         "due_anytime":  due_anytime,
         "today":        today.isoformat(),
         "groups_data":  groups_data,
+        "today_note":   today_note,
+        "all_emojis":   EMOJIS,
     })
 
 
@@ -418,6 +440,13 @@ async def update_group(group_id: int, name: str = Form(...)):
     return RedirectResponse("/", status_code=303)
 
 
+@app.post("/groups/{group_id}/icon")
+async def update_group_icon(group_id: int, emoji: str = Form(...)):
+    with get_conn() as conn:
+        conn.execute("UPDATE groups SET icon=? WHERE id=?", (emoji.strip(), group_id))
+    return JSONResponse({"ok": True})
+
+
 @app.post("/groups/{group_id}/delete")
 async def delete_group(group_id: int):
     with get_conn() as conn:
@@ -439,4 +468,13 @@ async def remove_thread_from_group(group_id: int, thread_id: int):
     with get_conn() as conn:
         conn.execute("DELETE FROM group_threads WHERE group_id=? AND thread_id=?",
                      (group_id, thread_id))
+    return JSONResponse({"ok": True})
+
+
+# Today notepad
+
+@app.post("/today")
+async def save_today(body: str = Form("")):
+    with get_conn() as conn:
+        _set_state(conn, "today", body)
     return JSONResponse({"ok": True})

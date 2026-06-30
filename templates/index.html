@@ -72,17 +72,37 @@
     /* ═══ HOME LAYOUT ════════════════════════════════════════════════════════ */
     .home-layout {
       display: grid;
-      grid-template-columns: 240px 1fr 272px;
+      grid-template-columns: var(--left-w, 240px) 1fr 272px;
       gap: 1.1rem;
       padding: 1.25rem 0.5rem 1.25rem 1rem;
       align-items: start;
     }
 
-    /* ═══ THREAD NAV (left) ══════════════════════════════════════════════════ */
-    .thread-nav {
+    /* ═══ LEFT COLUMN (threads + groups + today) ════════════════════════════ */
+    .left-col {
       position: sticky;
       top: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
       max-height: calc(100vh - var(--nav-h) - 2.5rem);
+    }
+    .left-resize {
+      position: absolute;
+      top: 0; right: -0.7rem;
+      width: 12px; height: 100%;
+      cursor: ew-resize; z-index: 5;
+    }
+    .left-resize::after {
+      content: ''; position: absolute; top: 0; bottom: 0; left: 5px;
+      width: 2px; border-radius: 2px; background: transparent; transition: background 0.12s;
+    }
+    .left-resize:hover::after, .left-resize.dragging::after { background: #cfcabf; }
+
+    /* ═══ THREAD NAV (left) ══════════════════════════════════════════════════ */
+    .thread-nav {
+      flex: 0 1 auto;
+      min-height: 96px;
       overflow-y: auto;
       background: var(--card);
       border: 1.5px solid var(--border);
@@ -90,6 +110,50 @@
     }
     .thread-nav::-webkit-scrollbar { width: 4px; }
     .thread-nav::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+
+    /* ═══ TODAY NOTEPAD (left) ══════════════════════════════════════════════ */
+    .today-panel {
+      flex: 1 1 auto;
+      min-height: 140px;
+      display: flex; flex-direction: column; overflow: hidden;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 13px;
+    }
+    .today-title {
+      font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted);
+      padding: 0.85rem 1rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .today-text {
+      flex: 1; width: 100%; resize: none; border: none; outline: none;
+      padding: 0.75rem 1rem; font-family: inherit; font-size: 0.85rem; line-height: 1.55;
+      color: var(--text); background: transparent;
+    }
+    .today-text::placeholder { color: #bbb; }
+    .today-text::-webkit-scrollbar { width: 4px; }
+    .today-text::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+
+    /* ═══ EMOJI PICKER (group icons) ════════════════════════════════════════ */
+    .ep-wrap { position: relative; flex-shrink: 0; }
+    .ep-btn {
+      width: 2rem; height: 2rem; font-size: 1.05rem; line-height: 1;
+      border: 1px solid #ddd; border-radius: 7px; background: #fff;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.12s;
+    }
+    .ep-btn:hover { border-color: #9b6be2; }
+    .ep-grid {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 300;
+      background: #fff; border: 1px solid #e0ddd8; border-radius: 10px;
+      padding: 0.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      grid-template-columns: repeat(6, 1fr); gap: 2px; width: 210px;
+      max-height: 230px; overflow-y: auto;
+    }
+    .ep-grid.open { display: grid; }
+    .ep-opt { font-size: 1.05rem; padding: 0.25rem; border: none; background: transparent; cursor: pointer; border-radius: 5px; line-height: 1; }
+    .ep-opt:hover { background: #f0efe9; }
 
     .tn-title {
       font-size: 0.7rem; font-weight: 700;
@@ -174,13 +238,15 @@
       background: #faf9f6; border-bottom: 1px solid #f2f1ec;
       display: flex; flex-direction: column; gap: 0.55rem;
     }
-    .tn-group-panel .gp-rename { display: flex; gap: 0.3rem; }
+    .tn-group-panel .gp-row { display: flex; gap: 0.35rem; align-items: center; }
+    .tn-group-panel .gp-rename { display: flex; gap: 0.3rem; flex: 1; min-width: 0; }
     .tn-group-panel .gp-rename input {
       flex: 1; min-width: 0; padding: 0.3rem 0.5rem; border: 1px solid #ddd; border-radius: 6px;
       font-size: 0.8rem; outline: none; background: #fff;
     }
     .tn-group-panel .gp-rename input:focus { border-color: #9b6be2; }
     .gp-chips-label { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; }
+    .gthread-chip .chip-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
     .tn-add {
       display: flex; align-items: center; gap: 0.4rem;
@@ -596,7 +662,8 @@
     }
     @media (max-width: 680px) {
       .home-layout { grid-template-columns: 1fr; }
-      .thread-nav { position: static; max-height: none; }
+      .left-col { position: static; max-height: none; }
+      .left-resize { display: none; }
     }
   </style>
   <script>
@@ -628,7 +695,8 @@
 <div id="view-home">
   <div class="home-layout">
 
-    <!-- Left: thread nav -->
+    <!-- Left column: threads + groups + today -->
+    <div class="left-col" id="left-col">
     <div class="thread-nav">
       <div class="tn-title">
         <span>Threads</span>
@@ -677,27 +745,33 @@
           <span class="tn-group-edit" onclick="event.stopPropagation();toggleGroupEdit({{ g.group.id }})" title="Edit group">✎</span>
         </div>
         <div class="tn-group-panel" id="gpanel-{{ g.group.id }}" style="display:none">
-          <form class="gp-rename" method="post" action="/groups/{{ g.group.id }}/update">
-            <input name="name" value="{{ g.group.name }}" required maxlength="18"
-                   onkeydown="if(event.key==='Escape'){event.preventDefault();toggleGroupEdit({{ g.group.id }})}" />
-            <button class="btn-mini" type="submit">Save</button>
-          </form>
+          <div class="gp-row">
+            <div class="ep-wrap">
+              <button type="button" class="ep-btn" id="gp-emoji-btn-{{ g.group.id }}"
+                      onclick="toggleGroupEmoji({{ g.group.id }})" title="Pick group emoji">{{ g.group.icon or '◆' }}</button>
+              <div class="ep-grid" id="gp-emoji-grid-{{ g.group.id }}">
+                {% for e in all_emojis %}
+                <button type="button" class="ep-opt" onclick="setGroupIcon({{ g.group.id }}, '{{ e }}')">{{ e }}</button>
+                {% endfor %}
+              </div>
+            </div>
+            <form class="gp-rename" method="post" action="/groups/{{ g.group.id }}/update">
+              <input name="name" value="{{ g.group.name }}" required maxlength="18"
+                     onkeydown="if(event.key==='Escape'){event.preventDefault();toggleGroupEdit({{ g.group.id }})}" />
+              <button class="btn-mini" type="submit">Save</button>
+            </form>
+          </div>
           {% if threads_data %}
           <div class="gp-chips-label">Threads in group</div>
           <div class="gthread-chips">
             {% for td in threads_data %}
-            {% set checked = td.thread.id in g.thread_ids %}
-            <label style="display:contents;cursor:pointer;">
-              <input type="checkbox" style="display:none"
-                     {% if checked %}checked{% endif %}
-                     onchange="toggleGroupThread({{ g.group.id }}, {{ td.thread.id }}, this.checked, this.nextElementSibling)" />
-              <span class="gthread-chip {% if checked %}gthread-chip--on{% endif %}"
-                    style="--chip-color:{{ td.color }}"
-                    onclick="this.previousElementSibling.click()">
-                <span style="width:7px;height:7px;border-radius:50%;background:{{ td.color }};display:inline-block;flex-shrink:0"></span>
-                {{ td.thread.name }}
-              </span>
-            </label>
+            <span class="gthread-chip {% if td.thread.id in g.thread_ids %}gthread-chip--on{% endif %}"
+                  style="--chip-color:{{ td.color }}"
+                  data-thread-id="{{ td.thread.id }}"
+                  onclick="toggleGroupThread({{ g.group.id }}, {{ td.thread.id }}, this)">
+              <span class="chip-dot" style="background:{{ td.color }}"></span>
+              {{ td.thread.name }}
+            </span>
             {% endfor %}
           </div>
           {% endif %}
@@ -709,7 +783,17 @@
       </div>
       {% endfor %}
 
-    </div>
+    </div><!-- /thread-nav -->
+
+      <!-- Today notepad -->
+      <div class="today-panel">
+        <div class="today-title">Today</div>
+        <textarea class="today-text" id="today-text" placeholder="What needs doing today…"
+                  oninput="saveToday(this.value)">{{ today_note }}</textarea>
+      </div>
+
+      <div class="left-resize" id="left-resize" title="Drag to resize"></div>
+    </div><!-- /left-col -->
 
     <!-- Middle: thread detail -->
     <div class="thread-detail" id="thread-detail">
@@ -1226,17 +1310,19 @@
   }
 
   /* ── groups ── */
+  // Clicking a group shows/hides exactly the threads that belong to it, without
+  // touching any other open threads. If they're all already shown, hide them.
   function toggleGroup(id) {
     const item = document.querySelector('.tn-group-item[data-group-id="' + id + '"]');
     const threadIds = (item.dataset.threadIds || '').split(',').filter(Boolean);
-    const allOpen = threadIds.length > 0 && threadIds.every(tid => _openThreads.has(tid));
-    if (allOpen) {
-      threadIds.forEach(tid => selectThread(tid));
-    } else {
-      [..._openThreads].forEach(tid => selectThread(tid));
-      threadIds.forEach(tid => selectThread(tid));
-      _sortThreadsByHeight();
-    }
+    if (!threadIds.length) return;
+    const allOpen = threadIds.every(tid => _openThreads.has(tid));
+    threadIds.forEach(tid => {
+      const isOpen = _openThreads.has(tid);
+      if (allOpen && isOpen) selectThread(tid);        // hide all of them
+      else if (!allOpen && !isOpen) selectThread(tid); // show the missing ones
+    });
+    if (!allOpen) _sortThreadsByHeight();
   }
 
   function _updateGroupStates() {
@@ -1256,8 +1342,10 @@
     }
   }
 
-  async function toggleGroupThread(groupId, threadId, add, chipEl) {
-    if (chipEl) chipEl.classList.toggle('gthread-chip--on', add);
+  // chipEl is the chip span itself; its current state decides add vs remove.
+  async function toggleGroupThread(groupId, threadId, chipEl) {
+    const add = !chipEl.classList.contains('gthread-chip--on');
+    chipEl.classList.toggle('gthread-chip--on', add);
     const url = add
       ? '/groups/' + groupId + '/threads/add'
       : '/groups/' + groupId + '/threads/' + threadId + '/remove';
@@ -1278,11 +1366,88 @@
         countEl.style.background = 'transparent';
         countEl.style.color = '#bbb';
         navItem.insertBefore(countEl, navItem.querySelector('.tn-group-edit'));
+      } else if (!ids.size && countEl) {
+        countEl.remove();
+      } else if (countEl) {
+        countEl.textContent = ids.size;
       }
-      if (countEl) countEl.textContent = ids.size || '';
     }
     _updateGroupStates();
   }
+
+  /* ── group emoji picker ── */
+  function toggleGroupEmoji(groupId) {
+    const grid = document.getElementById('gp-emoji-grid-' + groupId);
+    const isOpen = grid.classList.contains('open');
+    document.querySelectorAll('.ep-grid.open').forEach(g => g.classList.remove('open'));
+    if (!isOpen) grid.classList.add('open');
+  }
+  async function setGroupIcon(groupId, emoji) {
+    await fetch('/groups/' + groupId + '/icon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'emoji=' + encodeURIComponent(emoji),
+    });
+    const btn = document.getElementById('gp-emoji-btn-' + groupId);
+    if (btn) btn.textContent = emoji;
+    const navIcon = document.querySelector('.tn-group-item[data-group-id="' + groupId + '"] .tn-group-icon');
+    if (navIcon) navIcon.textContent = emoji;
+    document.getElementById('gp-emoji-grid-' + groupId).classList.remove('open');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.ep-wrap'))
+      document.querySelectorAll('.ep-grid.open').forEach(g => g.classList.remove('open'));
+  });
+
+  /* ── Today notepad: debounced autosave ── */
+  let _todayTimer = null;
+  function saveToday(value) {
+    clearTimeout(_todayTimer);
+    _todayTimer = setTimeout(() => {
+      fetch('/today', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'body=' + encodeURIComponent(value),
+      });
+    }, 500);
+  }
+
+  /* ── left column width resize ── */
+  (() => {
+    const handle = document.getElementById('left-resize');
+    const layout = document.querySelector('.home-layout');
+    const col    = document.getElementById('left-col');
+    if (!handle || !layout || !col) return;
+    const MIN = 200, MAX = 560;
+
+    const saved = (() => { try { return localStorage.getItem('pp-left-w'); } catch(e) { return null; } })();
+    if (saved) layout.style.setProperty('--left-w', saved + 'px');
+
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = col.getBoundingClientRect().width;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+      handle.classList.add('dragging');
+
+      function onMove(ev) {
+        let w = startW + (ev.clientX - startX);
+        w = Math.max(MIN, Math.min(MAX, w));
+        layout.style.setProperty('--left-w', w + 'px');
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        handle.classList.remove('dragging');
+        try { localStorage.setItem('pp-left-w', Math.round(col.getBoundingClientRect().width)); } catch(e) {}
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  })();
 
   /* ── search (matches task description + thread name) ── */
   let _searchOpenedViews = [];
