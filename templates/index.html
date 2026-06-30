@@ -72,7 +72,7 @@
     /* ═══ HOME LAYOUT ════════════════════════════════════════════════════════ */
     .home-layout {
       display: grid;
-      grid-template-columns: var(--left-w, 240px) 1fr 272px;
+      grid-template-columns: var(--left-w, 240px) 1fr var(--right-w, 272px);
       gap: 1.1rem;
       padding: 1.25rem 0.5rem 1.25rem 1rem;
       align-items: start;
@@ -101,7 +101,7 @@
 
     /* ═══ THREAD NAV (left) ══════════════════════════════════════════════════ */
     .thread-nav {
-      flex: 0 1 auto;
+      flex: 1 1 auto;
       min-height: 96px;
       overflow-y: auto;
       background: var(--card);
@@ -111,10 +111,21 @@
     .thread-nav::-webkit-scrollbar { width: 4px; }
     .thread-nav::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
 
+    /* drag handle to set the Today panel's height */
+    .today-resize {
+      flex-shrink: 0; height: 8px; margin: -0.55rem 0;
+      cursor: ns-resize; position: relative; z-index: 5;
+    }
+    .today-resize::after {
+      content: ''; position: absolute; left: 30%; right: 30%; top: 3px;
+      height: 2px; border-radius: 2px; background: transparent; transition: background 0.12s;
+    }
+    .today-resize:hover::after, .today-resize.dragging::after { background: #cfcabf; }
+
     /* ═══ TODAY NOTEPAD (left) ══════════════════════════════════════════════ */
     .today-panel {
-      flex: 1 1 auto;
-      min-height: 140px;
+      flex: 0 0 var(--today-h, 200px);
+      min-height: 90px;
       display: flex; flex-direction: column; overflow: hidden;
       background: var(--card);
       border: 1.5px solid var(--border);
@@ -171,6 +182,9 @@
       transition: color 0.12s; text-transform: none; letter-spacing: 0;
     }
     .tn-title-add:hover { color: #4a90e2; }
+    .tn-sec-label { display: flex; align-items: center; gap: 0.3rem; cursor: pointer; user-select: none; }
+    .tn-sec-label:hover .tn-caret { color: #666; }
+    .tn-caret { font-size: 0.6rem; color: #bbb; width: 0.7rem; display: inline-block; transition: color 0.12s; }
 
     .tn-list { padding: 0.35rem 0 0.5rem; }
 
@@ -557,6 +571,20 @@
       color: #991b1b;
     }
     .sidebar-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .sb-collapse {
+      flex-shrink: 0; border: none; background: transparent; cursor: pointer;
+      color: #bbb; font-size: 0.85rem; line-height: 1; padding: 0.1rem 0.2rem;
+      transition: color 0.12s;
+    }
+    .sb-collapse:hover { color: var(--text); }
+    /* collapsed: sidebar shrinks to a thin rail with just the expand chevron */
+    .sidebar.collapsed { overflow: hidden; }
+    .sidebar.collapsed .sidebar-title { padding: 0.6rem 0; justify-content: center; }
+    .sidebar.collapsed #sidebar-title-text,
+    .sidebar.collapsed .sb-deadline-btn,
+    .sidebar.collapsed .sidebar-upper,
+    .sidebar.collapsed .sb-resize-handle,
+    .sidebar.collapsed .sidebar-lower { display: none; }
 
     .sidebar-empty { padding: 1.5rem 1rem; font-size: 0.85rem; color: #bbb; text-align: center; }
 
@@ -742,7 +770,9 @@
     <div class="left-col" id="left-col">
     <div class="thread-nav">
       <div class="tn-title">
-        <span>Threads</span>
+        <span class="tn-sec-label" onclick="toggleNavSection('threads')" title="Collapse / expand">
+          <span class="tn-caret" id="caret-threads">▾</span>Threads
+        </span>
         <div style="display:flex;gap:0.5rem;align-items:center;">
           <span class="tn-title-add" onclick="openAllThreads()" title="Open all threads">⊞</span>
           <span class="tn-title-add" onclick="showNewThread()" title="New thread">+</span>
@@ -761,9 +791,12 @@
         {% endfor %}
       </div>
       <div class="tn-title">
-        <span>Groups</span>
+        <span class="tn-sec-label" onclick="toggleNavSection('groups')" title="Collapse / expand">
+          <span class="tn-caret" id="caret-groups">▾</span>Groups
+        </span>
         <span class="tn-title-add" onclick="showNavGroupForm()" title="New group">+</span>
       </div>
+      <div id="tn-groups">
       <div id="nav-group-create" style="display:none; padding:0.45rem 0.8rem; border-bottom:1px solid #f2f1ec;">
         <form method="post" action="/groups" style="display:flex; flex-direction:column; gap:0.3rem;">
           <input id="nav-group-input" name="name" type="text" placeholder="Group name…" required autocomplete="off" maxlength="18"
@@ -833,8 +866,12 @@
         </div>
       </div>
       {% endfor %}
+      </div><!-- /#tn-groups -->
 
     </div><!-- /thread-nav -->
+
+      <!-- drag to set Today panel height -->
+      <div class="today-resize" id="today-resize" title="Drag to resize"></div>
 
       <!-- Today notepad -->
       <div class="today-panel">
@@ -873,11 +910,12 @@
     </div>
 
     <!-- Right: due sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
       <div class="sidebar-title">
         <span id="sidebar-title-text">Due</span>
         <div class="sidebar-actions">
           <button class="sb-deadline-btn" id="sb-dl-toggle" onclick="toggleSidebarDeadlines(this)">Deadlines</button>
+          <button class="sb-collapse" id="sb-collapse" onclick="toggleSidebar()" title="Collapse panel">⟩</button>
         </div>
       </div>
 
@@ -1602,6 +1640,82 @@
     });
   })();
 
+  /* ── Today panel height resize ── */
+  (() => {
+    const handle = document.getElementById('today-resize');
+    const panel  = document.getElementById('today-text')?.closest('.today-panel');
+    const col    = document.getElementById('left-col');
+    if (!handle || !panel || !col) return;
+    const MIN = 90;
+
+    const saved = (() => { try { return localStorage.getItem('pp-today-h'); } catch(e) { return null; } })();
+    if (saved) col.style.setProperty('--today-h', saved + 'px');
+
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startH = panel.getBoundingClientRect().height;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ns-resize';
+      handle.classList.add('dragging');
+
+      function onMove(ev) {
+        const max = col.getBoundingClientRect().height - 120;  // leave room for thread-nav
+        let h = startH + (startY - ev.clientY);                // drag up = taller
+        h = Math.max(MIN, Math.min(Math.max(MIN, max), h));
+        col.style.setProperty('--today-h', h + 'px');
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        handle.classList.remove('dragging');
+        try { localStorage.setItem('pp-today-h', Math.round(panel.getBoundingClientRect().height)); } catch(e) {}
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  })();
+
+  /* ── collapse Threads / Groups sections (collapse upward) ── */
+  function _applyNavSection(name, collapsed) {
+    const body  = document.getElementById(name === 'threads' ? 'tn-list' : 'tn-groups');
+    const caret = document.getElementById('caret-' + name);
+    if (body)  body.style.display = collapsed ? 'none' : '';
+    if (caret) caret.textContent = collapsed ? '▸' : '▾';
+  }
+  function _navCollapsed() {
+    try { return JSON.parse(localStorage.getItem('pp-nav-collapsed') || '{}'); } catch(e) { return {}; }
+  }
+  function toggleNavSection(name) {
+    const state = _navCollapsed();
+    state[name] = !state[name];
+    try { localStorage.setItem('pp-nav-collapsed', JSON.stringify(state)); } catch(e) {}
+    _applyNavSection(name, state[name]);
+  }
+  (() => { const s = _navCollapsed(); _applyNavSection('threads', !!s.threads); _applyNavSection('groups', !!s.groups); })();
+
+  /* ── collapse the right (Due/Deadlines) panel ── */
+  function _applySidebarCollapsed(collapsed) {
+    const sb = document.getElementById('sidebar');
+    const layout = document.querySelector('.home-layout');
+    const btn = document.getElementById('sb-collapse');
+    if (!sb || !layout) return;
+    sb.classList.toggle('collapsed', collapsed);
+    layout.style.setProperty('--right-w', collapsed ? '30px' : '272px');
+    if (btn) { btn.textContent = collapsed ? '⟨' : '⟩'; btn.title = collapsed ? 'Expand panel' : 'Collapse panel'; }
+  }
+  function toggleSidebar() {
+    const collapsed = !document.getElementById('sidebar').classList.contains('collapsed');
+    try { localStorage.setItem('pp-sidebar-collapsed', collapsed ? '1' : '0'); } catch(e) {}
+    _applySidebarCollapsed(collapsed);
+  }
+  (() => {
+    let v = null; try { v = localStorage.getItem('pp-sidebar-collapsed'); } catch(e) {}
+    if (v === '1') _applySidebarCollapsed(true);
+  })();
+
   /* ── search (matches task description + thread name) ── */
   let _searchOpenedViews = [];
 
@@ -1708,6 +1822,7 @@
 
   /* ── create group from nav ── */
   function showNavGroupForm() {
+    if (_navCollapsed().groups) toggleNavSection('groups');  // expand if collapsed
     document.getElementById('nav-group-create').style.display = '';
     document.getElementById('nav-group-input').focus();
   }
