@@ -36,6 +36,12 @@ THREAD_COLORS = [
     "#e24a7a", "#4ab8e2", "#d4a23a", "#7a6be2",
 ]
 
+# Curated swatches for group boxes (used as a soft tint behind grouped threads).
+GROUP_COLORS = [
+    "#4a90e2", "#50b86c", "#9b6be2", "#e2844a",
+    "#e24a7a", "#4ab8e2", "#d4a23a", "#6b7280",
+]
+
 
 @contextmanager
 def get_conn():
@@ -63,9 +69,24 @@ def init_db():
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
                 name       TEXT NOT NULL,
                 icon       TEXT DEFAULT '',
+                color      TEXT DEFAULT '',
                 sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+        # Migrate older DBs: add the color column and backfill from the palette.
+        g_cols = {r[1] for r in conn.execute("PRAGMA table_info(groups)").fetchall()}
+        if "color" not in g_cols:
+            conn.execute("ALTER TABLE groups ADD COLUMN color TEXT DEFAULT ''")
+        for i, grp in enumerate(
+            conn.execute("SELECT id FROM groups WHERE color IS NULL OR color = '' ORDER BY sort_order, created_at").fetchall()
+        ):
+            conn.execute("UPDATE groups SET color=? WHERE id=?",
+                         (GROUP_COLORS[i % len(GROUP_COLORS)], grp["id"]))
+        # Enforce one group per thread: keep only the earliest membership per thread.
+        conn.execute("""
+            DELETE FROM group_threads
+            WHERE rowid NOT IN (SELECT MIN(rowid) FROM group_threads GROUP BY thread_id)
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS group_threads (
@@ -170,6 +191,9 @@ def _threads_with_tasks(conn):
     threads = conn.execute(
         "SELECT * FROM threads ORDER BY sort_order ASC, created_at ASC"
     ).fetchall()
+    # thread_id -> its (single) group_id, if any
+    thread_group = {r["thread_id"]: r["group_id"]
+                    for r in conn.execute("SELECT thread_id, group_id FROM group_threads").fetchall()}
     result = []
     for i, thread in enumerate(threads):
         tasks = conn.execute("""
@@ -183,6 +207,7 @@ def _threads_with_tasks(conn):
             "tasks":      tasks,
             "open_count": len(tasks),
             "color":      THREAD_COLORS[i % len(THREAD_COLORS)],
+            "group_id":   thread_group.get(thread["id"]),
         })
     return result
 
@@ -312,13 +337,14 @@ async def index(request: Request):
         groups_data  = _groups_with_threads(conn)
         today_note   = _get_state(conn, "today", "")
     return templates.TemplateResponse(request, "index.html", {
-        "threads_data": threads_data,
-        "due_upper":    due_upper,
-        "due_anytime":  due_anytime,
-        "today":        today.isoformat(),
-        "groups_data":  groups_data,
-        "today_note":   today_note,
-        "all_emojis":   EMOJIS,
+        "threads_data":  threads_data,
+        "due_upper":     due_upper,
+        "due_anytime":   due_anytime,
+        "today":         today.isoformat(),
+        "groups_data":   groups_data,
+        "today_note":    today_note,
+        "all_emojis":    EMOJIS,
+        "group_colors":  GROUP_COLORS,
     })
 
 
@@ -429,7 +455,9 @@ async def create_group(name: str = Form(...)):
     with get_conn() as conn:
         max_order = conn.execute("SELECT COALESCE(MAX(sort_order), -1) FROM groups").fetchone()[0]
         icon = _pick_group_emoji(conn)
-        conn.execute("INSERT INTO groups (name, sort_order, icon) VALUES (?,?,?)", (name.strip(), max_order + 1, icon))
+        color = GROUP_COLORS[(max_order + 1) % len(GROUP_COLORS)]
+        conn.execute("INSERT INTO groups (name, sort_order, icon, color) VALUES (?,?,?,?)",
+                     (name.strip(), max_order + 1, icon, color))
     return RedirectResponse("/", status_code=303)
 
 
@@ -447,6 +475,13 @@ async def update_group_icon(group_id: int, emoji: str = Form(...)):
     return JSONResponse({"ok": True})
 
 
+@app.post("/groups/{group_id}/color")
+async def update_group_color(group_id: int, color: str = Form(...)):
+    with get_conn() as conn:
+        conn.execute("UPDATE groups SET color=? WHERE id=?", (color.strip(), group_id))
+    return JSONResponse({"ok": True})
+
+
 @app.post("/groups/{group_id}/delete")
 async def delete_group(group_id: int):
     with get_conn() as conn:
@@ -458,6 +493,8 @@ async def delete_group(group_id: int):
 @app.post("/groups/{group_id}/threads/add")
 async def add_thread_to_group(group_id: int, thread_id: int = Form(...)):
     with get_conn() as conn:
+        # One group per thread: drop any prior membership first.
+        conn.execute("DELETE FROM group_threads WHERE thread_id=?", (thread_id,))
         conn.execute("INSERT OR IGNORE INTO group_threads (group_id, thread_id) VALUES (?,?)",
                      (group_id, thread_id))
     return JSONResponse({"ok": True})

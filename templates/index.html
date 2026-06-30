@@ -247,6 +247,14 @@
     .tn-group-panel .gp-rename input:focus { border-color: #9b6be2; }
     .gp-chips-label { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; }
     .gthread-chip .chip-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .gp-swatches { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .gp-swatch {
+      width: 1.15rem; height: 1.15rem; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(0,0,0,0.08) inset;
+      transition: transform 0.1s;
+    }
+    .gp-swatch:hover { transform: scale(1.12); }
+    .gp-swatch--on { border-color: #1a1a1a; }
 
     .tn-add {
       display: flex; align-items: center; gap: 0.4rem;
@@ -282,6 +290,41 @@
       border: 1.5px solid var(--border);
       border-radius: 13px;
       overflow: hidden;
+    }
+
+    /* ═══ GROUP ZONES (tinted boxes around grouped threads) ═════════════════ */
+    .group-zone {
+      break-inside: avoid;
+      margin-bottom: 1rem;
+      border-radius: 15px;
+      padding: 0.5rem 0.6rem 0.1rem;
+      border: 1.5px solid color-mix(in srgb, var(--zone-color, #888) 40%, transparent);
+      background: color-mix(in srgb, var(--zone-color, #888) 9%, transparent);
+    }
+    .zone-header {
+      display: flex; align-items: center; gap: 0.45rem;
+      padding: 0.25rem 0.4rem 0.5rem;
+      font-size: 0.85rem; font-weight: 700;
+      color: color-mix(in srgb, var(--zone-color, #888) 65%, #2a2a2a);
+      user-select: none;
+    }
+    .zone-emoji { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+    .zone-name { flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .zone-drag {
+      flex-shrink: 0; cursor: grab; line-height: 1; font-size: 0.85rem;
+      color: color-mix(in srgb, var(--zone-color, #888) 55%, transparent);
+      opacity: 0; transition: opacity 0.1s;
+    }
+    .group-zone:hover .zone-drag { opacity: 1; }
+    .group-zone.sortable-ghost { opacity: 0.35; }
+    .group-zone.sortable-drag { box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
+    /* cards sit edge-to-edge inside a zone */
+    .zone-body > .thread-detail-view { margin-bottom: 0.6rem; }
+    .zone-body:empty::after {
+      content: 'drop threads here';
+      display: block; text-align: center;
+      color: color-mix(in srgb, var(--zone-color, #888) 55%, transparent);
+      font-size: 0.72rem; font-weight: 600; padding: 0.5rem 0 0.8rem;
     }
 
     .tdv-stripe {
@@ -761,6 +804,14 @@
               <button class="btn-mini" type="submit">Save</button>
             </form>
           </div>
+          <div class="gp-chips-label">Box color</div>
+          <div class="gp-swatches" id="gp-swatches-{{ g.group.id }}">
+            {% for c in group_colors %}
+            <span class="gp-swatch {% if c == g.group.color %}gp-swatch--on{% endif %}"
+                  style="background:{{ c }}" data-color="{{ c }}"
+                  onclick="setGroupColor({{ g.group.id }}, '{{ c }}', this)"></span>
+            {% endfor %}
+          </div>
           {% if threads_data %}
           <div class="gp-chips-label">Threads in group</div>
           <div class="gthread-chips">
@@ -879,7 +930,8 @@
   <!-- Pool of thread views; JS moves them in/out of #thread-detail -->
   <div id="thread-detail-pool" style="display:none">
     {% for td in threads_data %}
-    <div class="thread-detail-view" id="td-view-{{ td.thread.id }}" style="--accent: {{ td.color }}">
+    <div class="thread-detail-view" id="td-view-{{ td.thread.id }}" style="--accent: {{ td.color }}"
+         data-group-id="{{ td.group_id or '' }}">
       <div class="tdv-stripe"></div>
       <div class="tdv-body">
         <div class="tdv-header">
@@ -996,6 +1048,21 @@
     </div>
     {% endfor %}
   </div>
+
+  <!-- Pool of group boxes; JS moves them into #thread-detail when they hold open threads -->
+  <div id="zone-pool" style="display:none">
+    {% for g in groups_data %}
+    <div class="group-zone" id="zone-{{ g.group.id }}" data-group-id="{{ g.group.id }}"
+         style="--zone-color: {{ g.group.color or '#888' }}">
+      <div class="zone-header">
+        <span class="zone-drag tdv-drag" title="Drag group">⠿</span>
+        <span class="zone-emoji">{{ g.group.icon or '◆' }}</span>
+        <span class="zone-name" onclick="toggleGroup({{ g.group.id }})" title="Hide this group">{{ g.group.name }}</span>
+      </div>
+      <div class="zone-body" id="zone-body-{{ g.group.id }}"></div>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -1006,33 +1073,68 @@
   const _detail = document.getElementById('thread-detail');
   const _pool   = document.getElementById('thread-detail-pool');
 
+  const _zonePool = document.getElementById('zone-pool');
+
   function _syncEmptyState() {
+    // counts loose cards and cards inside boxes (querySelectorAll is deep)
     const hasVisible = [..._detail.querySelectorAll('.thread-detail-view')].some(v => v.style.display !== 'none');
     document.getElementById('thread-detail-empty').style.display =
-      !hasVisible && document.getElementById('nt-form').style.display === 'none' ? '' : 'none';
+      (!hasVisible && document.getElementById('nt-form').style.display === 'none') ? '' : 'none';
   }
-  function _saveOpenThreads() {
-    const domOrder = [..._detail.querySelectorAll('.thread-detail-view')].map(el => el.id.replace('td-view-',''));
-    try { localStorage.setItem('pp-open-threads', JSON.stringify(domOrder)); } catch(e) {}
+
+  function _ensureZone(gid) {
+    const zone = document.getElementById('zone-' + gid);
+    if (zone && zone.parentElement !== _detail) _detail.appendChild(zone);
+    return zone;
   }
+  function _retractZoneIfEmpty(gid) {
+    const zone = document.getElementById('zone-' + gid);
+    if (zone && !zone.querySelector('.zone-body').children.length) _zonePool.appendChild(zone);
+  }
+  // Put a thread card where it belongs: inside its group's box, or loose on the canvas.
+  function placeCard(card) {
+    const gid = card.dataset.groupId;
+    if (gid && document.getElementById('zone-' + gid)) {
+      _ensureZone(gid).querySelector('.zone-body').appendChild(card);
+    } else {
+      _detail.appendChild(card);
+    }
+  }
+
+  // Persist the canvas layout: top-level order (loose cards + boxes), per-box
+  // order, and which threads are open. Membership itself lives on the server.
+  function saveLayout() {
+    const order = [..._detail.children]
+      .filter(c => c.classList.contains('thread-detail-view') || c.classList.contains('group-zone'))
+      .map(c => c.classList.contains('group-zone') ? 'z:' + c.dataset.groupId : 't:' + c.id.replace('td-view-', ''));
+    const zones = {};
+    document.querySelectorAll('.group-zone').forEach(z => {
+      zones[z.dataset.groupId] = [...z.querySelectorAll('.zone-body > .thread-detail-view')]
+        .map(c => c.id.replace('td-view-', ''));
+    });
+    try { localStorage.setItem('pp-layout', JSON.stringify({ order, zones, open: [..._openThreads] })); } catch(e) {}
+  }
+  function _sortThreadsByHeight() {}  // masonry auto-packing removed; layout is user-controlled now
 
   function selectThread(id) {
     id = String(id);
-    const view    = document.getElementById('td-view-' + id);
+    const view = document.getElementById('td-view-' + id);
     if (!view) return;
     const navItem = document.querySelector('.tn-item[data-id="' + id + '"]');
     if (_openThreads.has(id)) {
       _openThreads.delete(id);
+      const gid = view.dataset.groupId;
       _pool.appendChild(view);
+      if (gid) _retractZoneIfEmpty(gid);
       if (navItem) navItem.classList.remove('active');
     } else {
       _openThreads.add(id);
-      _detail.appendChild(view);
+      placeCard(view);
       if (navItem) navItem.classList.add('active');
       document.getElementById('nt-form').style.display = 'none';
     }
     _syncEmptyState();
-    _saveOpenThreads();
+    saveLayout();
     _updateGroupStates();
     _updateSidebar();
   }
@@ -1040,22 +1142,9 @@
   function openAllThreads() {
     const allIds = [...document.querySelectorAll('.tn-item[data-id]')].map(el => el.dataset.id);
     const allOpen = allIds.every(id => _openThreads.has(id));
-    if (allOpen) {
-      allIds.forEach(id => { if (_openThreads.has(id)) selectThread(id); });
-    } else {
-      allIds.forEach(id => { if (!_openThreads.has(id)) selectThread(id); });
-      _sortThreadsByHeight();
-    }
-  }
-
-  function _sortThreadsByHeight() {
-    requestAnimationFrame(() => {
-      const views = [..._detail.querySelectorAll('.thread-detail-view')];
-      if (views.length <= 1) return;
-      views.sort((a, b) => b.offsetHeight - a.offsetHeight);
-      const ntForm = document.getElementById('nt-form');
-      views.forEach(v => _detail.insertBefore(v, ntForm));
-      _saveOpenThreads();
+    allIds.forEach(id => {
+      if (allOpen && _openThreads.has(id)) selectThread(id);
+      else if (!allOpen && !_openThreads.has(id)) selectThread(id);
     });
   }
 
@@ -1083,12 +1172,34 @@
     document.getElementById('tdv-edit-' + id).style.display = 'none';
   }
 
-  /* restore open threads in saved order */
+  /* restore canvas: which threads are open, plus saved ordering (best-effort) */
   (() => {
-    try {
-      const ids = JSON.parse(localStorage.getItem('pp-open-threads') || '[]');
-      ids.forEach(id => { if (document.getElementById('td-view-' + id)) selectThread(id); });
-    } catch(e) {}
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem('pp-layout') || 'null'); } catch(e) {}
+    if (!data) {
+      // migrate from the old open-threads key, if present
+      try {
+        const ids = JSON.parse(localStorage.getItem('pp-open-threads') || '[]');
+        ids.forEach(id => { if (document.getElementById('td-view-' + id)) selectThread(id); });
+      } catch(e) {}
+      return;
+    }
+    const open = (data.open || []).map(String);
+    open.forEach(id => { if (document.getElementById('td-view-' + id) && !_openThreads.has(id)) selectThread(id); });
+    // apply saved order within each box
+    Object.entries(data.zones || {}).forEach(([gid, ids]) => {
+      const body = document.querySelector('#zone-' + gid + ' .zone-body');
+      if (!body) return;
+      ids.forEach(id => { const c = document.getElementById('td-view-' + id); if (c && body.contains(c)) body.appendChild(c); });
+    });
+    // apply saved top-level order
+    (data.order || []).forEach(tok => {
+      const el = tok.startsWith('z:')
+        ? document.getElementById('zone-' + tok.slice(2))
+        : document.getElementById('td-view-' + tok.slice(2));
+      if (el && el.parentElement === _detail) _detail.appendChild(el);
+    });
+    saveLayout();
   })();
 
   /* ── add-item panel ── */
@@ -1342,22 +1453,13 @@
     }
   }
 
-  // chipEl is the chip span itself; its current state decides add vs remove.
-  async function toggleGroupThread(groupId, threadId, chipEl) {
-    const add = !chipEl.classList.contains('gthread-chip--on');
-    chipEl.classList.toggle('gthread-chip--on', add);
-    const url = add
-      ? '/groups/' + groupId + '/threads/add'
-      : '/groups/' + groupId + '/threads/' + threadId + '/remove';
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: add ? 'thread_id=' + threadId : '',
-    });
-    const navItem = document.querySelector('.tn-group-item[data-group-id="' + groupId + '"]');
+  // Update one group's nav item (data-thread-ids + count) and its panel chip.
+  function _syncGroupNav(gid, threadId, member) {
+    if (!gid) return;
+    const navItem = document.querySelector('.tn-group-item[data-group-id="' + gid + '"]');
     if (navItem) {
       const ids = new Set((navItem.dataset.threadIds || '').split(',').filter(Boolean));
-      add ? ids.add(String(threadId)) : ids.delete(String(threadId));
+      member ? ids.add(String(threadId)) : ids.delete(String(threadId));
       navItem.dataset.threadIds = [...ids].join(',');
       let countEl = navItem.querySelector('.tn-count');
       if (ids.size && !countEl) {
@@ -1372,7 +1474,42 @@
         countEl.textContent = ids.size;
       }
     }
+    const chip = document.querySelector('#gpanel-' + gid + ' .gthread-chip[data-thread-id="' + threadId + '"]');
+    if (chip) chip.classList.toggle('gthread-chip--on', member);
+  }
+
+  // The one place membership changes. newGid=null means "ungroup".
+  // reposition=false when a drag already physically placed the card.
+  async function setThreadGroup(threadId, newGid, reposition = true) {
+    threadId = String(threadId);
+    newGid = newGid ? String(newGid) : null;
+    const card = document.getElementById('td-view-' + threadId);
+    const oldGid = card && card.dataset.groupId ? card.dataset.groupId : null;
+    if (oldGid === newGid) return;
+
+    if (newGid) {
+      await fetch('/groups/' + newGid + '/threads/add', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'thread_id=' + threadId,
+      });
+    } else if (oldGid) {
+      await fetch('/groups/' + oldGid + '/threads/' + threadId + '/remove', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+    }
+    if (card) card.dataset.groupId = newGid || '';
+    _syncGroupNav(oldGid, threadId, false);   // server enforces one-group, so old membership is gone
+    _syncGroupNav(newGid, threadId, true);
+    if (reposition && card && _openThreads.has(threadId)) placeCard(card);
+    if (oldGid) _retractZoneIfEmpty(oldGid);
     _updateGroupStates();
+    saveLayout();
+  }
+
+  // chipEl is the chip span; its current state decides add vs remove.
+  function toggleGroupThread(groupId, threadId, chipEl) {
+    const add = !chipEl.classList.contains('gthread-chip--on');
+    setThreadGroup(threadId, add ? groupId : null);
   }
 
   /* ── group emoji picker ── */
@@ -1398,6 +1535,22 @@
     if (!e.target.closest('.ep-wrap'))
       document.querySelectorAll('.ep-grid.open').forEach(g => g.classList.remove('open'));
   });
+
+  /* ── group box color ── */
+  async function setGroupColor(groupId, color, swatchEl) {
+    await fetch('/groups/' + groupId + '/color', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'color=' + encodeURIComponent(color),
+    });
+    // live-update the box tint
+    const zone = document.getElementById('zone-' + groupId);
+    if (zone) zone.style.setProperty('--zone-color', color);
+    // reflect selected swatch
+    if (swatchEl) {
+      swatchEl.parentElement.querySelectorAll('.gp-swatch').forEach(s => s.classList.remove('gp-swatch--on'));
+      swatchEl.classList.add('gp-swatch--on');
+    }
+  }
 
   /* ── Today notepad: debounced autosave ── */
   let _todayTimer = null;
@@ -1458,7 +1611,7 @@
     try { q ? localStorage.setItem('pp-search', query.trim()) : localStorage.removeItem('pp-search'); } catch(e) {}
     if (!q) { _exitSearch(); return; }
 
-    _searchOpenedViews.forEach(v => { v.style.display = ''; _pool.appendChild(v); });
+    _searchOpenedViews.forEach(v => { v.style.display = ''; const gid = v.dataset.groupId; _pool.appendChild(v); if (gid) _retractZoneIfEmpty(gid); });
     _searchOpenedViews = [];
     _detail.querySelectorAll('.thread-detail-view').forEach(v => v.style.display = '');
 
@@ -1477,7 +1630,7 @@
       }
 
       if (!_detail.contains(view)) {
-        _detail.appendChild(view);
+        placeCard(view);
         _searchOpenedViews.push(view);
       }
 
@@ -1492,7 +1645,9 @@
     _searchOpenedViews.forEach(v => {
       v.style.display = '';
       v.querySelectorAll('.tc-task-wrap').forEach(w => w.style.opacity = '');
+      const gid = v.dataset.groupId;
       _pool.appendChild(v);
+      if (gid) _retractZoneIfEmpty(gid);
     });
     _searchOpenedViews = [];
     _detail.querySelectorAll('.thread-detail-view').forEach(v => {
@@ -1517,12 +1672,38 @@
     } catch(e) {}
   })();
 
-  /* ── drag-and-drop: open thread cards ── */
+  /* ── drag-and-drop: thread cards + group boxes (nested) ── */
+  // One handler for every list (canvas + each box). Detects whether a card
+  // changed which box it's in and updates membership accordingly.
+  function onThreadDrop(evt) {
+    const item = evt.item;
+    if (item.classList.contains('group-zone')) { saveLayout(); return; }
+    const tid = item.id.replace('td-view-', '');
+    const toZone = evt.to.closest('.group-zone');
+    const newGid = toZone ? toZone.dataset.groupId : null;
+    const oldGid = item.dataset.groupId || null;
+    if (String(newGid || '') !== String(oldGid || '')) {
+      setThreadGroup(tid, newGid, false);  // Sortable already placed the card
+    } else {
+      saveLayout();
+    }
+  }
+
   Sortable.create(_detail, {
-    draggable:  '.thread-detail-view',
-    handle:     '.tdv-drag',
-    animation:  150,
-    onEnd() { _saveOpenThreads(); },
+    group: { name: 'pane', pull: true, put: true },
+    draggable: '.thread-detail-view, .group-zone',
+    handle: '.tdv-drag',
+    animation: 150,
+    onEnd: onThreadDrop,
+  });
+  document.querySelectorAll('.zone-body').forEach(body => {
+    Sortable.create(body, {
+      group: { name: 'pane', pull: true, put: (to, from, dragEl) => !dragEl.classList.contains('group-zone') },
+      draggable: '.thread-detail-view',
+      handle: '.tdv-drag',
+      animation: 150,
+      onEnd: onThreadDrop,
+    });
   });
 
   /* ── create group from nav ── */
