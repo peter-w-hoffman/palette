@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ping Pong</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
+  <title>Palette</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,10 +35,6 @@
       height: calc(100vh - var(--nav-h) - env(titlebar-area-height, 0px));
       overflow-y: auto;
     }
-    #view-manage {
-      height: calc(100vh - var(--nav-h) - env(titlebar-area-height, 0px));
-      overflow-y: auto;
-    }
 
     /* ═══ NAV ═══════════════════════════════════════════════════════════════ */
     nav {
@@ -52,32 +48,11 @@
       -webkit-app-region: drag;
     }
     nav button, nav a, nav input, nav select { -webkit-app-region: no-drag; }
-    .brand { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.3px; }
-    .tabs { display: flex; gap: 0; align-items: stretch; height: 100%; }
-    .tab-btn {
-      padding: 0 1.1rem; border: none; background: transparent; cursor: pointer;
-      font-size: 0.85rem; font-weight: 500; color: var(--muted);
-      border-bottom: 2px solid transparent;
-      transition: color 0.12s, border-color 0.12s;
-      margin-bottom: -1px;
-    }
-    .tab-btn:hover { color: var(--text); }
-    .tab-btn.active { color: var(--text); font-weight: 600; border-bottom-color: #1a1a1a; }
-    .nav-filter {
-      display: flex; gap: 0.12rem;
-      background: #eeede8; border-radius: 8px; padding: 3px;
-    }
-    .nav-filter-btn {
-      padding: 0.32rem 0.9rem; border: none; border-radius: 6px;
-      font-size: 0.85rem; font-weight: 500; color: var(--muted);
-      background: transparent; cursor: pointer;
-      transition: background 0.12s, color 0.12s;
-    }
-    .nav-filter-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .brand { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.3px; display: flex; align-items: center; gap: 0.4rem; }
     .nav-spacer { flex: 1; }
     .nav-search {
-      width: 200px; flex-shrink: 0; position: relative;
-      display: flex; align-items: center; margin-right: 0.75rem;
+      width: 240px; flex-shrink: 0; position: relative;
+      display: flex; align-items: center;
     }
     .nav-search input {
       width: 100%; border: 1px solid var(--border); border-radius: 20px;
@@ -168,15 +143,16 @@
       padding: 0.05rem 0.4rem;
     }
 
-    .tn-section-divider {
-      font-size: 0.65rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.07em; color: #ccc;
-      padding: 0.65rem 0.9rem 0.2rem 0.9rem;
-      border-top: 1px solid #f2f1ec; margin-top: 0.25rem;
-      display: flex; align-items: center; justify-content: space-between;
+    .tdv-drag {
+      flex-shrink: 0; color: #ccc; font-size: 0.85rem; line-height: 1;
+      cursor: grab; padding: 0 2px; opacity: 0;
+      transition: opacity 0.1s;
     }
-    .tn-section-divider .tn-title-add { font-size: 1rem; }
+    .thread-detail-view:hover .tdv-drag { opacity: 1; }
+    .thread-detail-view.sortable-ghost { opacity: 0.35; }
+    .thread-detail-view.sortable-drag  { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
 
+    /* ═══ GROUPS (left nav) ══════════════════════════════════════════════════ */
     .tn-group-item {
       display: flex; align-items: center; gap: 0.55rem;
       padding: 0.52rem 0.9rem 0.52rem 0.75rem;
@@ -187,15 +163,24 @@
     .tn-group-item.active { background: #f5f0fa; border-left-color: #9b6be2; }
     .tn-group-item.active .tn-name { color: #9b6be2; font-weight: 600; }
     .tn-group-icon { font-size: 1rem; flex-shrink: 0; line-height: 1; }
-
-    .tdv-drag {
-      flex-shrink: 0; color: #ccc; font-size: 0.85rem; line-height: 1;
-      cursor: grab; padding: 0 2px; opacity: 0;
-      transition: opacity 0.1s;
+    .tn-group-edit {
+      flex-shrink: 0; color: #ccc; font-size: 0.8rem; line-height: 1;
+      cursor: pointer; padding: 0 2px; opacity: 0; transition: opacity 0.1s, color 0.12s;
     }
-    .thread-detail-view:hover .tdv-drag { opacity: 1; }
-    .thread-detail-view.sortable-ghost { opacity: 0.35; }
-    .thread-detail-view.sortable-drag  { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .tn-group-item:hover .tn-group-edit { opacity: 1; }
+    .tn-group-edit:hover { color: #9b6be2; }
+    .tn-group-panel {
+      padding: 0.6rem 0.85rem 0.75rem;
+      background: #faf9f6; border-bottom: 1px solid #f2f1ec;
+      display: flex; flex-direction: column; gap: 0.55rem;
+    }
+    .tn-group-panel .gp-rename { display: flex; gap: 0.3rem; }
+    .tn-group-panel .gp-rename input {
+      flex: 1; min-width: 0; padding: 0.3rem 0.5rem; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 0.8rem; outline: none; background: #fff;
+    }
+    .tn-group-panel .gp-rename input:focus { border-color: #9b6be2; }
+    .gp-chips-label { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; }
 
     .tn-add {
       display: flex; align-items: center; gap: 0.4rem;
@@ -227,9 +212,6 @@
     .thread-detail-view {
       break-inside: avoid;
       margin-bottom: 1rem;
-    }
-
-    .thread-detail-view {
       background: var(--card);
       border: 1.5px solid var(--border);
       border-radius: 13px;
@@ -248,14 +230,22 @@
     .tdv-header {
       display: flex; align-items: center; gap: 0.6rem;
       margin-bottom: 1rem;
-      cursor: pointer;
       user-select: none;
     }
-    .tdv-header:hover .tdv-close { color: #999; }
-    .tdv-name { font-size: 1rem; font-weight: 700; flex: 1; }
-    .tdv-close {
-      font-size: 0.72rem; color: #ccc;
-      transition: color 0.12s;
+    .tdv-name { font-size: 1rem; font-weight: 700; flex: 1; cursor: pointer; }
+    .tdv-act {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px;
+      border: 1.5px solid transparent; background: transparent; color: #ccc;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.1s, border-color 0.12s, color 0.12s;
+    }
+    .thread-detail-view:hover .tdv-act { opacity: 1; }
+    .tdv-act:hover { border-color: #4a90e2; color: #4a90e2; }
+    .tdv-act--del:hover { border-color: #e8564a; color: #e8564a; }
+    .tdv-edit { display: flex; gap: 0.35rem; align-items: center; margin-bottom: 1rem; }
+    .tdv-edit input {
+      flex: 1; min-width: 0; padding: 0.35rem 0.55rem; border: 1.5px solid #4a90e2; border-radius: 7px;
+      font-size: 0.9rem; outline: none; background: #fff; font-family: inherit;
     }
     .tc-count {
       font-size: 0.72rem; font-weight: 600;
@@ -312,16 +302,7 @@
     .tc-row:hover .tc-edit-btn { opacity: 1; }
     .tc-edit-btn:hover { border-color: #4a90e2; color: #4a90e2; }
 
-
     .tc-empty { font-size: 0.82rem; color: #bbb; padding: 0.6rem 0 0.8rem; }
-
-    .tc-group + .tc-group { border-top: 1px solid #eeede8; margin-top: 0.3rem; padding-top: 0.3rem; }
-    .tc-group-label {
-      font-size: 0.68rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.07em;
-      color: #bbb; padding: 0.5rem 0 0.25rem;
-    }
-    .tc-group-label.is-now { color: #2e8b57; }
 
     /* add-item footer */
     .tc-footer {
@@ -378,19 +359,6 @@
     .tc-add-panel input[name="description"]::placeholder,
     .tc-edit-panel input[name="description"]::placeholder { color: #bbb; }
 
-    .tc-add-panel select, .tc-edit-panel select {
-      width: 100%; padding: 0.45rem 1.6rem 0.45rem 0.65rem;
-      border: 1.5px solid #e0ddd8; border-radius: 8px;
-      font-size: 0.82rem; font-family: inherit;
-      background: #fff; color: var(--text);
-      outline: none; cursor: pointer;
-      transition: border-color 0.12s;
-      -webkit-appearance: none; appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23bbb' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 0.6rem center;
-    }
-    .tc-add-panel select:focus, .tc-edit-panel select:focus { border-color: var(--accent, #4a90e2); }
-
     .tc-add-panel .add-btns, .tc-edit-panel .add-btns {
       display: flex; gap: 0.4rem; padding-top: 0.1rem;
     }
@@ -410,23 +378,6 @@
       transition: color 0.12s;
     }
     .tc-add-panel .add-btns .cancel:hover, .tc-edit-panel .add-btns .cancel:hover { color: #666; }
-
-    .qap-wrap { display: none; align-items: center; gap: 0.3rem; }
-    .qap-wrap.open { display: flex; }
-    .qap-input {
-      flex: 1; padding: 0.38rem 0.55rem;
-      border: 1.5px solid #4a90e2; border-radius: 7px;
-      font-size: 0.82rem; outline: none; background: #fff; font-family: inherit;
-    }
-    .qap-btn {
-      flex-shrink: 0; padding: 0.35rem 0.65rem; border: none; border-radius: 7px;
-      background: #1a1a1a; color: #fff; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-    }
-    .qap-btn:hover { background: #333; }
-    .qap-cancel {
-      flex-shrink: 0; padding: 0.35rem 0.45rem; border: 1px solid #ddd; border-radius: 7px;
-      background: transparent; color: #aaa; font-size: 0.78rem; cursor: pointer;
-    }
 
     /* ═══ TASK NOTES ═════════════════════════════════════════════════════════ */
     .tc-notes-panel { display: none; padding: 0.45rem 0 0.5rem; border-top: 1px solid #f2f1ec; }
@@ -497,13 +448,6 @@
       color: #991b1b;
     }
     .sidebar-actions { display: flex; align-items: center; gap: 0.5rem; }
-    .sb-export {
-      font-size: 0.7rem; color: #aaa; text-decoration: none;
-      padding: 0.15rem 0.4rem; border: 1px solid #e0ddd8; border-radius: 5px;
-      transition: color 0.12s, border-color 0.12s;
-      text-transform: none; letter-spacing: 0; font-weight: 500;
-    }
-    .sb-export:hover { color: #4a90e2; border-color: #4a90e2; }
 
     .sidebar-empty { padding: 1.5rem 1rem; font-size: 0.85rem; color: #bbb; text-align: center; }
 
@@ -517,7 +461,6 @@
     }
     .sb-label:hover { opacity: 0.8; }
     .sb-label-text { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-    .sb-label.now      .sb-label-text { color: #2e8b57; }
     .sb-label.overdue  .sb-label-text { color: #c62828; }
     .sb-label.asap     .sb-label-text { color: #d4580a; }
     .sb-label.today    .sb-label-text { color: #bf6000; }
@@ -525,17 +468,7 @@
     .sb-label.future   .sb-label-text { color: var(--muted); }
     .sb-label.anytime  .sb-label-text { color: #aaa; }
     .sb-collapse-icon { margin-left: auto; font-size: 0.6rem; color: #ccc; }
-    .sb-group.collapsed .sb-item,
-    .sb-group.collapsed .sb-person-group { display: none; }
-
-    .sb-person-label {
-      display: flex; align-items: center; gap: 0.3rem;
-      padding: 0.35rem 1rem 0.1rem 1.55rem;
-      font-size: 0.71rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.05em; color: #bbb;
-    }
-    .sb-person-label.is-me { color: #2e8b57; }
-    .sb-person-group .sb-item { padding-left: 1.8rem; }
+    .sb-group.collapsed .sb-item { display: none; }
 
     .sb-item {
       display: flex; align-items: flex-start; gap: 0.55rem;
@@ -557,78 +490,21 @@
     }
     .sb-close:hover { border-color: #4caf50; color: #4caf50; background: #f0fbf0; }
 
-    /* ═══ MANAGE TAB ═════════════════════════════════════════════════════════ */
-    .manage-page {
-      padding: 2.5rem 2.5rem 4rem;
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; align-items: start;
+    /* ═══ BUTTONS ════════════════════════════════════════════════════════════ */
+    .btn-mini {
+      padding: 0.28rem 0.55rem; border-radius: 6px; border: 1px solid #ddd;
+      background: #fff; color: #555; font-size: 0.76rem; font-weight: 600;
+      cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
-    .manage-col {
-      padding: 0 3rem 0 0;
-      border-right: 1px solid var(--border);
-    }
-    .manage-col:last-child { border-right: none; padding: 0 0 0 3rem; }
-    .manage-col:not(:first-child):not(:last-child) { padding: 0 3rem; }
-    .msection {
-      background: transparent; border: none; border-radius: 0; padding: 0;
-    }
-    .msection + .msection { margin-top: 2.5rem; }
-    .msection h2 {
-      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.11em; color: #aaa;
-      padding-bottom: 0.6rem;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 0;
-    }
-    .mlist { display: flex; flex-direction: column; gap: 0; margin-bottom: 0; }
-    .mrow {
-      display: flex; align-items: center; gap: 0.55rem;
-      padding: 0.68rem 0;
-      border-bottom: 1px solid var(--border);
-      background: transparent; border-radius: 0;
-      transition: background 0.1s;
-    }
-    .mrow:hover { background: #f5f4f0; margin: 0 -0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; }
-    .mrow .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .mrow-label { flex: 1; font-size: 0.875rem; font-weight: 500; min-width: 0; }
-    .mrow-right { display: flex; align-items: center; flex-shrink: 0; width: 16rem; justify-content: space-between; }
-    .mrow-meta  { font-size: 0.72rem; color: var(--muted); white-space: nowrap; text-align: left; order: 1; flex-shrink: 0; }
-    .mrow-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.12s; flex-shrink: 0; order: 2; justify-content: flex-end; }
-    .mrow:hover .mrow-actions { opacity: 1; }
-    .mrow-editform { display: none; flex: 1; gap: 0.35rem; align-items: center; }
-    .mrow-editform input {
-      flex: 1; padding: 0.28rem 0.5rem; border: 1px solid #ddd; border-radius: 6px;
-      font-size: 0.86rem; background: #fff; outline: none;
-    }
-    .mrow-editform input:focus { border-color: #4a90e2; }
-    .manage-page hr.div { display: none; }
-    .manage-page .add-row {
-      padding-top: 0.2rem;
-    }
-    .manage-page .add-row input {
-      background: transparent; border: none; border-bottom: 1.5px solid transparent;
-      border-radius: 0; padding: 0.6rem 0; font-size: 0.875rem; color: var(--muted);
-    }
-    .manage-page .add-row input:focus {
-      border-bottom-color: #aaa; background: transparent; color: var(--text);
-    }
-    .manage-page .add-row input::placeholder { color: #bbb; }
-    .manage-page .add-row .btn-dark {
-      background: transparent; border: none; border-radius: 6px;
-      color: #999; font-size: 0.78rem; font-weight: 600; padding: 0.3rem 0.5rem;
-    }
-    .manage-page .add-row .btn-dark:hover { background: #eae9e4; color: var(--text); }
-    .manage-page .btn-sm { padding: 0.18rem 0.38rem; font-size: 0.69rem; }
-    .manage-page .mrow-actions .btn-ghost {
-      border-color: transparent; color: #999; font-size: 0.73rem;
-    }
-    .manage-page .mrow-actions .btn-ghost:hover { border-color: #ddd; color: var(--text); background: #f0efe9; }
-    .manage-page .mrow-actions .btn-red {
-      border-color: transparent; font-size: 0.73rem;
-    }
-    .manage-page .mrow-actions .btn-red:hover { border-color: #f0c0c0; background: #fff0f0; }
+    .btn-mini:hover { background: #f0efe9; }
+    .btn-mini--del { border-color: transparent; color: #c44; }
+    .btn-mini--del:hover { border-color: #f0c0c0; background: #fff0f0; }
+
+    /* group membership chips */
+    .gthread-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
     .gthread-chip {
-      display: inline-flex; align-items: center; gap: 0.35rem;
-      padding: 0.28rem 0.65rem; border-radius: 20px; font-size: 0.8rem; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.22rem 0.55rem; border-radius: 20px; font-size: 0.74rem; font-weight: 500;
       border: 1.5px solid #ddd; background: #fff; color: var(--muted);
       cursor: pointer; user-select: none; transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
@@ -637,52 +513,6 @@
       background: color-mix(in srgb, var(--chip-color) 12%, transparent);
       border-color: var(--chip-color); color: var(--text); font-weight: 600;
     }
-    .add-row { display: flex; gap: 0.5rem; }
-    .add-row input {
-      flex: 1; padding: 0.42rem 0.7rem; border: 1px solid #ddd; border-radius: 7px;
-      font-size: 0.88rem; background: #fafaf8; outline: none;
-    }
-    .add-row input:focus { border-color: #4a90e2; background: #fff; }
-    .btn { padding: 0.38rem 0.85rem; border: none; border-radius: 7px; font-size: 0.84rem; font-weight: 500; cursor: pointer; }
-    .btn-dark  { background: #1a1a1a; color: #fff; }
-    .btn-dark:hover { background: #333; }
-    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
-    .btn-ghost:hover { background: #f0efe9; }
-    .btn-red   { background: transparent; border: 1px solid #f0c0c0; color: #c44; }
-    .btn-red:hover { background: #fff0f0; }
-    .btn-sm { padding: 0.25rem 0.55rem; font-size: 0.76rem; }
-    hr.div { border: none; border-top: 1px solid #eee; margin: 0.9rem 0; }
-
-    /* ═══ THREAD HISTORY ════════════════════════════════════════════════════ */
-    .th-panel { display: none; border-top: 1px solid #f0ede8; margin-top: 0.4rem; padding-top: 0.4rem; }
-    .th-panel.open { display: block; }
-    .th-row {
-      display: flex; align-items: center; gap: 0.5rem; padding: 0.28rem 0;
-      font-size: 0.82rem; color: #999; border-top: 1px solid #f5f4f0;
-    }
-    .th-row:first-child { border-top: none; }
-    .th-check { color: #4caf50; font-size: 0.75rem; flex-shrink: 0; }
-    .th-desc  { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .th-person { font-size: 0.75rem; color: #bbb; flex-shrink: 0; }
-
-    /* ═══ EMOJI PICKER ════════════════════════════════════════════════════════ */
-    .ep-wrap { position: relative; flex-shrink: 0; }
-    .ep-btn {
-      width: 2.1rem; height: 2.1rem; font-size: 1.1rem; line-height: 1;
-      border: 1px solid #ddd; border-radius: 6px; background: #fafaf8;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: border-color 0.12s;
-    }
-    .ep-btn:hover { border-color: #4a90e2; background: #fff; }
-    .ep-grid {
-      display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 300;
-      background: #fff; border: 1px solid #e0ddd8; border-radius: 10px;
-      padding: 0.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-      grid-template-columns: repeat(6, 1fr); gap: 2px; width: 204px;
-    }
-    .ep-grid.open { display: grid; }
-    .ep-opt { font-size: 1.1rem; padding: 0.28rem; border: none; background: transparent; cursor: pointer; border-radius: 4px; line-height: 1; }
-    .ep-opt:hover { background: #f0efe9; }
 
     /* ═══ DUE DATE SELECTOR ═════════════════════════════════════════════════ */
     .due-type-row {
@@ -700,24 +530,6 @@
       background: #fff; color: var(--text); font-weight: 600;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
-
-    /* effort picker */
-    .effort-fields { display: none; flex-direction: column; gap: 0.35rem; }
-    .effort-btn-row { display: flex; gap: 4px; }
-    .effort-pick-btn {
-      flex: 1; padding: 0.3rem 0; border-radius: 6px;
-      border: 1.5px solid transparent; cursor: pointer;
-      font-size: 0.72rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.04em;
-      background: transparent; color: #ccc;
-      transition: background 0.12s, color 0.12s, border-color 0.12s;
-    }
-    .effort-pick-btn[data-level="mindless"]:hover,
-    .effort-pick-btn[data-level="mindless"].active { background: #e8f5f0; color: #2e7d5e; border-color: #9dd0be; }
-    .effort-pick-btn[data-level="standard"]:hover,
-    .effort-pick-btn[data-level="standard"].active { background: #dbeeff; color: #1a6fbd; border-color: #a8ccf0; }
-    .effort-pick-btn[data-level="intense"]:hover,
-    .effort-pick-btn[data-level="intense"].active  { background: #fff0e0; color: #c05800; border-color: #f0c080; }
 
     /* Flatpickr overrides */
     .flatpickr-wrapper { width: 100%; }
@@ -743,7 +555,6 @@
     .flatpickr-weekday { font-size: 0.72rem; font-weight: 600; color: #aaa; }
     .flatpickr-day { border-radius: 7px; font-size: 0.82rem; }
     .flatpickr-day.today { border-color: #4a90e2; }
-    /* hide the original input — flatpickr creates a visible one */
     input[type="date"].tc-date-input { display: none !important; }
 
     /* ═══ DEADLINE ══════════════════════════════════════════════════════════ */
@@ -773,44 +584,6 @@
     .sb-deadline-btn:hover { border-color: #e8564a; color: #e8564a; }
     .sb-deadline-btn.active { background: #ffe0dc; color: #c0392b; border-color: #e8a09a; }
 
-    /* ═══ EFFORT TAGS ════════════════════════════════════════════════════════ */
-    .tc-effort {
-      flex-shrink: 0; font-size: 0.66rem; font-weight: 700;
-      padding: 0.08rem 0.38rem; border-radius: 4px;
-      text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
-    }
-    .effort-mindless { background: #e8f5f0; color: #2e7d5e; }
-    .effort-standard { background: #dbeeff; color: #1a6fbd; }
-    .effort-intense  { background: #fff0e0; color: #c05800; }
-
-    .tc-hours { flex-shrink: 0; font-size: 0.7rem; color: #bbb; white-space: nowrap; }
-
-    /* nav effort buttons — colorful pills, separated from All/Me */
-    .nav-effort-wrap {
-      display: none; align-items: center; gap: 0.4rem;
-      padding-left: 0.75rem;
-      border-left: 1.5px solid var(--border);
-      margin-left: 0.25rem;
-    }
-    .nav-effort-wrap.visible { display: flex; }
-    .nav-effort-label {
-      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.06em; color: #bbb;
-      cursor: pointer; user-select: none;
-    }
-    .nav-effort-label:hover { color: #999; }
-    .nav-effort-btn {
-      font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-      padding: 0.26rem 0.65rem; border-radius: 20px; border: 1.5px solid transparent; cursor: pointer;
-      opacity: 0.5; transition: opacity 0.15s, border-color 0.12s;
-    }
-    .nav-effort-btn:hover { opacity: 0.8; }
-    .nav-effort-btn.active { opacity: 1; border-color: currentColor; }
-    .neb-all      { background: #f0f0f0; color: #666; }
-    .neb-mindless { background: #e8f5f0; color: #2e7d5e; }
-    .neb-standard { background: #dbeeff; color: #1a6fbd; }
-    .neb-intense  { background: #fff0e0; color: #c05800; }
-
     /* ═══ DRAG STATES ════════════════════════════════════════════════════════ */
     .tn-item.sortable-ghost { opacity: 0.35; }
     .tc-task-wrap.sortable-ghost { opacity: 0.35; }
@@ -829,7 +602,7 @@
   <script>
     if (['standalone','window-controls-overlay'].some(m =>
       window.matchMedia('(display-mode: ' + m + ')').matches)) {
-      document.title = ' ';
+      document.title = ' ';
     }
   </script>
 </head>
@@ -837,20 +610,7 @@
 
 <!-- NAV -->
 <nav>
-  <div class="brand"><span style="font-size:1.35rem">🏓</span></div>
-  <div class="nav-filter">
-    <button class="nav-filter-btn active" id="gf-all" onclick="setGlobalFilter('all')">All</button>
-    <button class="nav-filter-btn" id="gf-me" onclick="setGlobalFilter('me')">Me</button>
-  </div>
-  <div id="nav-effort-bar" class="nav-effort-wrap">
-    <span class="nav-effort-label" id="effort-label" onclick="toggleEffortExpanded()">Effort ›</span>
-    <div id="effort-btns" style="display:none;align-items:center;gap:0.4rem;display:none">
-      <button class="nav-effort-btn neb-all active"  id="ef-all"      onclick="setGlobalEffortFilter('all',this)">All</button>
-      <button class="nav-effort-btn neb-mindless"    id="ef-mindless" onclick="setGlobalEffortFilter('mindless',this)">Mindless</button>
-      <button class="nav-effort-btn neb-standard"    id="ef-standard" onclick="setGlobalEffortFilter('standard',this)">Standard</button>
-      <button class="nav-effort-btn neb-intense"     id="ef-intense"  onclick="setGlobalEffortFilter('intense',this)">Intense</button>
-    </div>
-  </div>
+  <div class="brand"><span style="font-size:1.35rem">🎨</span><span>Palette</span></div>
   <div class="nav-spacer"></div>
   <div class="nav-search">
     <svg class="nav-search-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -862,13 +622,9 @@
            onkeydown="if(event.key==='Escape')_clearSearchInput()" />
     <button id="search-clear" class="nav-search-clear" onclick="_clearSearchInput()" style="display:none">×</button>
   </div>
-  <div class="tabs">
-    <button class="tab-btn" id="btn-home"   onclick="switchTab('home')">Home</button>
-    <button class="tab-btn" id="btn-manage" onclick="switchTab('manage')">Manage</button>
-  </div>
 </nav>
 
-<!-- ════════ HOME TAB ════════ -->
+<!-- ════════ HOME ════════ -->
 <div id="view-home">
   <div class="home-layout">
 
@@ -908,19 +664,50 @@
           </div>
         </form>
       </div>
-      {% if groups_data %}
       {% for g in groups_data %}
-      <div class="tn-group-item" data-group-id="{{ g.group.id }}"
-           data-thread-ids="{{ g.thread_ids | join(',') }}"
-           onclick="toggleGroup({{ g.group.id }})">
-        <span class="tn-group-icon">{{ g.group.icon or '◆' }}</span>
-        <span class="tn-name">{{ g.group.name }}</span>
-        {% if g.thread_ids %}
-        <span class="tn-count" style="background:transparent;color:#bbb">{{ g.thread_ids | length }}</span>
-        {% endif %}
+      <div class="tn-group-wrap">
+        <div class="tn-group-item" data-group-id="{{ g.group.id }}"
+             data-thread-ids="{{ g.thread_ids | join(',') }}"
+             onclick="toggleGroup({{ g.group.id }})">
+          <span class="tn-group-icon">{{ g.group.icon or '◆' }}</span>
+          <span class="tn-name">{{ g.group.name }}</span>
+          {% if g.thread_ids %}
+          <span class="tn-count" style="background:transparent;color:#bbb">{{ g.thread_ids | length }}</span>
+          {% endif %}
+          <span class="tn-group-edit" onclick="event.stopPropagation();toggleGroupEdit({{ g.group.id }})" title="Edit group">✎</span>
+        </div>
+        <div class="tn-group-panel" id="gpanel-{{ g.group.id }}" style="display:none">
+          <form class="gp-rename" method="post" action="/groups/{{ g.group.id }}/update">
+            <input name="name" value="{{ g.group.name }}" required maxlength="18"
+                   onkeydown="if(event.key==='Escape'){event.preventDefault();toggleGroupEdit({{ g.group.id }})}" />
+            <button class="btn-mini" type="submit">Save</button>
+          </form>
+          {% if threads_data %}
+          <div class="gp-chips-label">Threads in group</div>
+          <div class="gthread-chips">
+            {% for td in threads_data %}
+            {% set checked = td.thread.id in g.thread_ids %}
+            <label style="display:contents;cursor:pointer;">
+              <input type="checkbox" style="display:none"
+                     {% if checked %}checked{% endif %}
+                     onchange="toggleGroupThread({{ g.group.id }}, {{ td.thread.id }}, this.checked, this.nextElementSibling)" />
+              <span class="gthread-chip {% if checked %}gthread-chip--on{% endif %}"
+                    style="--chip-color:{{ td.color }}"
+                    onclick="this.previousElementSibling.click()">
+                <span style="width:7px;height:7px;border-radius:50%;background:{{ td.color }};display:inline-block;flex-shrink:0"></span>
+                {{ td.thread.name }}
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <form method="post" action="/groups/{{ g.group.id }}/delete"
+                onsubmit="return confirm('Delete group &quot;{{ g.group.name }}&quot;? (Threads are kept.)')">
+            <button class="btn-mini btn-mini--del" type="submit">Delete group</button>
+          </form>
+        </div>
       </div>
       {% endfor %}
-      {% endif %}
 
     </div>
 
@@ -956,7 +743,6 @@
         <span id="sidebar-title-text">Due</span>
         <div class="sidebar-actions">
           <button class="sb-deadline-btn" id="sb-dl-toggle" onclick="toggleSidebarDeadlines(this)">Deadlines</button>
-          <a href="/export/csv" class="sb-export" download>↓ CSV</a>
         </div>
       </div>
 
@@ -967,15 +753,11 @@
           <span class="sb-collapse-icon">▾</span>
         </div>
         {% for task in group.tasks %}
-        <div class="sb-item" data-is-me="{{ 'true' if task.is_me else 'false' }}" data-thread-id="{{ task.thread_id }}" data-is-deadline="{{ '1' if task.is_deadline else '0' }}" data-effort="{{ task.effort or '' }}">
+        <div class="sb-item" data-thread-id="{{ task.thread_id }}" data-is-deadline="{{ '1' if task.is_deadline else '0' }}">
           <div class="sb-dot" style="background: {{ task.thread_color }}"></div>
           <div class="sb-body">
             <div class="sb-desc" title="{{ task.description }}">{{ task.description }}</div>
             <div class="sb-meta">
-              {% if task.person_name %}
-              <span>{{ task.person_emoji }} {{ task.person_name }}</span>
-              <span>·</span>
-              {% endif %}
               <span class="sb-thread-tag"
                     style="background: color-mix(in srgb, {{ task.thread_color }} 12%, transparent); color: {{ task.thread_color }}">
                 {{ task.thread_name }}
@@ -1016,86 +798,83 @@
     <div class="thread-detail-view" id="td-view-{{ td.thread.id }}" style="--accent: {{ td.color }}">
       <div class="tdv-stripe"></div>
       <div class="tdv-body">
-        <div class="tdv-header" onclick="selectThread({{ td.thread.id }})">
+        <div class="tdv-header">
           <span class="tdv-drag" title="Drag to reorder">⠿</span>
-          <span class="tdv-name">{{ td.thread.name }}</span>
+          <span class="tdv-name" onclick="selectThread({{ td.thread.id }})">{{ td.thread.name }}</span>
           {% if td.open_count > 0 %}<span class="tc-count">{{ td.open_count }}</span>{% endif %}
+          <button class="tdv-act" type="button" onclick="startThreadEdit({{ td.thread.id }})" title="Rename thread">
+            <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
+              <path d="M7 1.5l1.5 1.5L3 8.5H1.5V7L7 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <form method="post" action="/threads/{{ td.thread.id }}/delete" style="display:contents"
+                onsubmit="return confirm('Delete thread &quot;{{ td.thread.name }}&quot; and all its tasks? This cannot be undone.')">
+            <button class="tdv-act tdv-act--del" type="submit" title="Delete thread">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <path d="M2.5 3.5h7M5 3.5V2.5h2v1M3.2 3.5l.4 6h4.8l.4-6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </form>
         </div>
 
-        <div class="tc-tasks">
-          {% if not td.groups %}
+        <form class="tdv-edit" id="tdv-edit-{{ td.thread.id }}" method="post" action="/threads/{{ td.thread.id }}/update" style="display:none">
+          <input name="name" value="{{ td.thread.name }}" required maxlength="18"
+                 onkeydown="if(event.key==='Escape'){event.preventDefault();cancelThreadEdit({{ td.thread.id }})}" />
+          <button class="btn-mini" type="submit">Save</button>
+          <button class="btn-mini" type="button" onclick="cancelThreadEdit({{ td.thread.id }})">✕</button>
+        </form>
+
+        <div class="tc-tasks" id="tc-tasks-{{ td.thread.id }}">
+          {% if not td.tasks %}
           <div class="tc-empty">All clear ✓</div>
           {% else %}
-          {% for group in td.groups %}
-          <div class="tc-group">
-            <div class="tc-group-label {% if group.is_now %}is-now{% endif %}">{{ group.label }}</div>
-            {% for task in group.tasks %}
-            <div class="tc-task-wrap" id="twrap-{{ task.id }}" data-id="{{ task.id }}"
-                 data-is-me="{{ 'true' if task.person_id == me_id else 'false' }}"
-                 data-person="{{ (task.person_name or '') | lower }}">
-              <div class="tc-row" id="tk-row-{{ task.id }}">
-                <span class="tc-drag-handle" title="Drag to reorder">⠿</span>
-                <div class="tc-notes-indicator {% if task.notes %}has-notes{% endif %}" id="tind-{{ task.id }}"></div>
-                <span class="tc-desc" data-view title="{{ task.description }}"
-                      onclick="toggleNotes({{ task.id }})">{{ task.description }}</span>
-                {% if task.due_date %}
-                <span class="tc-due {{ task.due_date | date_cls }}" data-view>{{ task.due_date | fmt_date }}</span>
-                {% endif %}
-                {% if task.effort and task.person_id == me_id %}
-                <span class="tc-effort effort-{{ task.effort }}" data-view data-effort="{{ task.effort }}" data-effort-tag>{{ task.effort }}</span>
-                {% endif %}
-                {% if task.is_deadline %}
-                <span class="tc-deadline-flag" data-view>deadline</span>
-                {% endif %}
-                <button class="tc-edit-btn" data-view type="button" onclick="startTaskEdit({{ task.id }})" title="Edit">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                    <path d="M7 1.5l1.5 1.5L3 8.5H1.5V7L7 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <form method="post" action="/tasks/{{ task.id }}/close" style="display:inline" data-view>
-                  <button class="tc-done" type="submit" title="Mark done">✓</button>
-                </form>
-              </div>
-              <div class="tc-edit-panel" id="tk-edit-{{ task.id }}" data-due="{{ task.due_date or 'ASAP' }}" style="display:none">
-                <form method="post" action="/tasks/{{ task.id }}/update">
-                  <input name="description" value="{{ task.description }}" required
-                         onkeydown="if(event.key==='Escape'){event.preventDefault();cancelTaskEdit({{ task.id }})}" />
-                  <select name="person_id" onchange="_checkEffortVisibility(this)">
-                    {% for p in td.people %}
-                    <option value="{{ p.id }}" {% if p.id == task.person_id %}selected{% endif %}>{{ p.emoji }} {{ p.name }}</option>
-                    {% endfor %}
-                  </select>
-                  <div class="effort-fields">
-                    <div class="effort-btn-row">
-                      <button type="button" class="effort-pick-btn" data-level="mindless" onclick="pickEffort(this)">Mindless</button>
-                      <button type="button" class="effort-pick-btn" data-level="standard"  onclick="pickEffort(this)">Standard</button>
-                      <button type="button" class="effort-pick-btn" data-level="intense"   onclick="pickEffort(this)">Intense</button>
-                    </div>
-                    <input type="hidden" name="effort" value="{{ task.effort or 'standard' }}" />
-                  </div>
-                  <input type="hidden" name="due_date" id="due-edit-{{ task.id }}" value="{{ task.due_date or 'ASAP' }}" />
-                  <div class="due-type-row">
-                    <button type="button" class="due-type-btn" onclick="pickEditDueType({{ task.id }},'ASAP',this)">ASAP</button>
-                    <button type="button" class="due-type-btn" onclick="pickEditDueType({{ task.id }},'ANYTIME',this)">Anytime</button>
-                    <button type="button" class="due-type-btn" onclick="pickEditDueType({{ task.id }},'date',this)">Date ›</button>
-                  </div>
-                  <input type="date" id="due-edit-date-{{ task.id }}" class="tc-date-input" style="display:none"
-                         oninput="document.getElementById('due-edit-{{ task.id }}').value = this.value" />
-                  <button type="button" class="deadline-toggle-btn {% if task.is_deadline %}active{% endif %}" onclick="toggleDeadline(this)">Mark as deadline</button>
-                  <input type="hidden" name="is_deadline" value="{{ '1' if task.is_deadline else '0' }}" />
-                  <div class="add-btns">
-                    <button class="submit" type="submit">Save →</button>
-                    <button class="cancel" type="button" onclick="cancelTaskEdit({{ task.id }})">Cancel</button>
-                  </div>
-                </form>
-              </div>
-              <div class="tc-notes-panel" id="tnotes-{{ task.id }}">
-                <textarea class="tc-notes-textarea" placeholder="Add a note…"
-                          oninput="saveNotes({{ task.id }}, this.value)"
-                          >{{ task.notes or '' }}</textarea>
-              </div>
+          {% for task in td.tasks %}
+          <div class="tc-task-wrap" id="twrap-{{ task.id }}" data-id="{{ task.id }}">
+            <div class="tc-row" id="tk-row-{{ task.id }}">
+              <span class="tc-drag-handle" title="Drag to reorder">⠿</span>
+              <div class="tc-notes-indicator {% if task.notes %}has-notes{% endif %}" id="tind-{{ task.id }}"></div>
+              <span class="tc-desc" data-view title="{{ task.description }}"
+                    onclick="toggleNotes({{ task.id }})">{{ task.description }}</span>
+              {% if task.due_date %}
+              <span class="tc-due {{ task.due_date | date_cls }}" data-view>{{ task.due_date | fmt_date }}</span>
+              {% endif %}
+              {% if task.is_deadline %}
+              <span class="tc-deadline-flag" data-view>deadline</span>
+              {% endif %}
+              <button class="tc-edit-btn" data-view type="button" onclick="startTaskEdit({{ task.id }})" title="Edit">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M7 1.5l1.5 1.5L3 8.5H1.5V7L7 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <form method="post" action="/tasks/{{ task.id }}/close" style="display:inline" data-view>
+                <button class="tc-done" type="submit" title="Mark done">✓</button>
+              </form>
             </div>
-            {% endfor %}
+            <div class="tc-edit-panel" id="tk-edit-{{ task.id }}" data-due="{{ task.due_date or 'ASAP' }}" style="display:none">
+              <form method="post" action="/tasks/{{ task.id }}/update">
+                <input name="description" value="{{ task.description }}" required
+                       onkeydown="if(event.key==='Escape'){event.preventDefault();cancelTaskEdit({{ task.id }})}" />
+                <input type="hidden" name="due_date" id="due-edit-{{ task.id }}" value="{{ task.due_date or 'ASAP' }}" />
+                <div class="due-type-row">
+                  <button type="button" class="due-type-btn" onclick="pickEditDueType({{ task.id }},'ASAP',this)">ASAP</button>
+                  <button type="button" class="due-type-btn" onclick="pickEditDueType({{ task.id }},'ANYTIME',this)">Anytime</button>
+                  <button type="button" class="due-type-btn" onclick="pickEditDueType({{ task.id }},'date',this)">Date ›</button>
+                </div>
+                <input type="date" id="due-edit-date-{{ task.id }}" class="tc-date-input" style="display:none"
+                       oninput="document.getElementById('due-edit-{{ task.id }}').value = this.value" />
+                <button type="button" class="deadline-toggle-btn {% if task.is_deadline %}active{% endif %}" onclick="toggleDeadline(this)">Mark as deadline</button>
+                <input type="hidden" name="is_deadline" value="{{ '1' if task.is_deadline else '0' }}" />
+                <div class="add-btns">
+                  <button class="submit" type="submit">Save →</button>
+                  <button class="cancel" type="button" onclick="cancelTaskEdit({{ task.id }})">Cancel</button>
+                </div>
+              </form>
+            </div>
+            <div class="tc-notes-panel" id="tnotes-{{ task.id }}">
+              <textarea class="tc-notes-textarea" placeholder="Add a note…"
+                        oninput="saveNotes({{ task.id }}, this.value)"
+                        >{{ task.notes or '' }}</textarea>
+            </div>
           </div>
           {% endfor %}
           {% endif %}
@@ -1109,33 +888,9 @@
             Add item
           </button>
           <div class="tc-add-panel" id="ap-{{ td.thread.id }}">
-            {% if not people %}
-            <p style="font-size:0.78rem;color:#e07000">Add people in Manage first.</p>
-            {% else %}
             <form method="post" action="/tasks">
               <input type="hidden" name="thread_id" value="{{ td.thread.id }}" />
               <input name="description" type="text" placeholder="What needs to happen?" required autocomplete="off" />
-              <select name="person_id" required onchange="handlePersonSel(this)">
-                <option value="" disabled {% if not me_id %}selected{% endif %}>Who has the ball?</option>
-                {% for p in td.people %}
-                <option value="{{ p.id }}" {% if p.id == me_id %}selected{% endif %}>{{ p.emoji }} {{ p.name }}</option>
-                {% endfor %}
-                <option value="__new__">＋ Add new person…</option>
-              </select>
-              <div class="qap-wrap">
-                <input class="qap-input" type="text" placeholder="Name…" maxlength="60"
-                       onkeydown="if(event.key==='Enter'){event.preventDefault();quickAddPerson(this)}else if(event.key==='Escape'){cancelQap(this)}" />
-                <button class="qap-btn" type="button" onclick="quickAddPerson(this.previousElementSibling)">Add</button>
-                <button class="qap-cancel" type="button" onclick="cancelQap(this.previousElementSibling.previousElementSibling)">✕</button>
-              </div>
-              <div class="effort-fields" id="ef-fields-{{ td.thread.id }}">
-                <div class="effort-btn-row">
-                  <button type="button" class="effort-pick-btn" data-level="mindless" onclick="pickEffort(this)">Mindless</button>
-                  <button type="button" class="effort-pick-btn effort-pick-btn--default" data-level="standard" onclick="pickEffort(this)">Standard</button>
-                  <button type="button" class="effort-pick-btn" data-level="intense"   onclick="pickEffort(this)">Intense</button>
-                </div>
-                <input type="hidden" name="effort" value="standard" />
-              </div>
               <input type="hidden" name="due_date" id="due-hidden-{{ td.thread.id }}" value="ANYTIME" />
               <div class="due-type-row">
                 <button type="button" class="due-type-btn" onclick="pickDueType('{{ td.thread.id }}','ASAP',this)">ASAP</button>
@@ -1151,7 +906,6 @@
                 <button class="cancel" type="button" onclick="toggleAdd({{ td.thread.id }}, null)">Cancel</button>
               </div>
             </form>
-            {% endif %}
           </div>
         </div>
       </div>
@@ -1160,225 +914,8 @@
   </div>
 </div>
 
-<!-- ════════ MANAGE TAB ════════ -->
-<div id="view-manage" style="display:none">
-  <div class="manage-page">
-
-    <div class="manage-col">
-    <div class="msection">
-      <h2>Threads</h2>
-      {% if threads_data %}
-      <div class="mlist">
-        {% for td in threads_data %}
-        <div class="mrow" id="trow-{{ td.thread.id }}">
-          <div class="dot" style="background: {{ td.color }}"></div>
-          <div class="mrow-label" id="tlabel-{{ td.thread.id }}">{{ td.thread.name }}</div>
-          <form class="mrow-editform" id="tedit-{{ td.thread.id }}"
-                method="post" action="/threads/{{ td.thread.id }}/update">
-            <input name="name" value="{{ td.thread.name }}" required maxlength="18" />
-            <button class="btn btn-ghost btn-sm" type="submit">Save</button>
-            <button class="btn btn-ghost btn-sm" type="button" onclick="cancelEdit('t',{{ td.thread.id }})">✕</button>
-          </form>
-          <div class="mrow-right" id="tright-{{ td.thread.id }}">
-            <div class="mrow-meta" id="tmeta-{{ td.thread.id }}">
-              {{ td.open_count }} open{% if td.total_count > td.open_count %} · {{ td.total_count - td.open_count }} done{% endif %}
-            </div>
-            <div class="mrow-actions" id="tactions-{{ td.thread.id }}">
-              {% if td.closed_tasks %}
-              <button class="btn btn-ghost btn-sm" onclick="toggleHistory({{ td.thread.id }}, this)">History</button>
-              {% endif %}
-              <button class="btn btn-ghost btn-sm" onclick="startEdit('t',{{ td.thread.id }})">Edit</button>
-              <form method="post" action="/threads/{{ td.thread.id }}/delete">
-                <button class="btn btn-red btn-sm" type="submit">Archive</button>
-              </form>
-            </div>
-          </div>
-        </div>
-        {% if td.closed_tasks %}
-        <div class="th-panel" id="thist-{{ td.thread.id }}">
-          {% for task in td.closed_tasks %}
-          <div class="th-row">
-            <span class="th-check">✓</span>
-            <span class="th-desc" title="{{ task.description }}">{{ task.description }}</span>
-            {% if task.person_name %}
-            <span class="th-person">{{ task.person_emoji }} {{ task.person_name }}</span>
-            {% endif %}
-            {% if task.closed_at %}
-            <span class="th-person" style="color:#ccc">{{ task.closed_at | fmt_ts }}</span>
-            {% endif %}
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-        {% endfor %}
-      </div>
-      <hr class="div" />
-      {% endif %}
-      <div class="add-row">
-        <form method="post" action="/threads" style="display:flex;gap:0.5rem;flex:1">
-          <input name="name" type="text" placeholder="New thread name…" required autocomplete="off" maxlength="18" />
-          <button class="btn btn-dark" type="submit">Create</button>
-        </form>
-      </div>
-    </div>
-
-    {% if inactive_threads %}
-    <div class="msection">
-      <h2>Archived</h2>
-      <div class="mlist">
-        {% for t in inactive_threads %}
-        <div class="mrow">
-          <div class="dot" style="background:#ccc"></div>
-          <div class="mrow-label" style="color:var(--muted)">{{ t.name }}</div>
-          <div class="mrow-actions" style="opacity:1">
-            <form method="post" action="/threads/{{ t.id }}/activate">
-              <button class="btn btn-ghost btn-sm" type="submit">Restore</button>
-            </form>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-    </div><!-- end threads manage-col -->
-
-    <div class="manage-col">
-    <div class="msection">
-      <h2>People</h2>
-      {% if people %}
-      <div class="mlist">
-        {% for p in people %}
-        <div class="mrow" id="prow-{{ p.id }}">
-          <span id="pemoji-{{ p.id }}" style="font-size:1.1rem;line-height:1;flex-shrink:0">{{ p.emoji }}</span>
-          <div class="mrow-label" id="plabel-{{ p.id }}">{{ p.name }}</div>
-          <form class="mrow-editform" id="pedit-{{ p.id }}"
-                method="post" action="/people/{{ p.id }}/update">
-            <input type="hidden" name="emoji" id="ep-val-{{ p.id }}" value="{{ p.emoji }}" />
-            <div class="ep-wrap">
-              <button type="button" class="ep-btn" id="ep-btn-{{ p.id }}"
-                      onclick="toggleEmojiPicker({{ p.id }})">{{ p.emoji }}</button>
-              <div class="ep-grid" id="ep-grid-{{ p.id }}">
-                {% for e in all_emojis %}
-                <button type="button" class="ep-opt" onclick="pickEmoji({{ p.id }}, '{{ e }}')">{{ e }}</button>
-                {% endfor %}
-              </div>
-            </div>
-            <input name="name" value="{{ p.name }}" required />
-            <button class="btn btn-ghost btn-sm" type="submit">Save</button>
-            <button class="btn btn-ghost btn-sm" type="button" onclick="cancelEdit('p',{{ p.id }})">✕</button>
-          </form>
-          <div class="mrow-right" id="pright-{{ p.id }}">
-            <div class="mrow-meta">
-              {% if p.open_count > 0 %}{{ p.open_count }} open{% endif %}
-            </div>
-            <div class="mrow-actions" id="pactions-{{ p.id }}">
-              <button class="btn btn-ghost btn-sm" onclick="startEdit('p',{{ p.id }})">Edit</button>
-              {% if p.name | lower != 'me' %}
-              <form method="post" action="/people/{{ p.id }}/delete"
-                    onsubmit="return confirmDel('{{ p.name }}',{{ p.open_count }},'person')">
-                <button class="btn btn-red btn-sm" type="submit"
-                        {% if p.open_count > 0 %}disabled title="{{ p.open_count }} open task(s)"{% endif %}>
-                  Remove
-                </button>
-              </form>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      <hr class="div" />
-      {% endif %}
-      <div class="add-row">
-        <form method="post" action="/people" style="display:flex;gap:0.5rem;flex:1">
-          <input name="name" type="text" placeholder="Add a person…" required autocomplete="off" />
-          <button class="btn btn-dark" type="submit">Add</button>
-        </form>
-      </div>
-    </div>
-    </div><!-- end people manage-col -->
-
-    <div class="manage-col">
-    <!-- Groups section -->
-    <div class="msection">
-      <h2>Groups</h2>
-      {% if groups_data %}
-      <div class="mlist">
-        {% for g in groups_data %}
-        <div>
-          <div class="mrow" id="grow-{{ g.group.id }}">
-            <span style="font-size:1rem;flex-shrink:0;line-height:1">{{ g.group.icon or '◆' }}</span>
-            <div class="mrow-label" id="glabel-{{ g.group.id }}">{{ g.group.name }}</div>
-            <form class="mrow-editform" id="gedit-{{ g.group.id }}"
-                  method="post" action="/groups/{{ g.group.id }}/update">
-              <input name="name" value="{{ g.group.name }}" required maxlength="18" />
-              <button class="btn btn-ghost btn-sm" type="submit">Save</button>
-              <button class="btn btn-ghost btn-sm" type="button" onclick="cancelEdit('g',{{ g.group.id }})">✕</button>
-            </form>
-            <div class="mrow-right" id="gright-{{ g.group.id }}">
-              <div class="mrow-meta" id="gmeta-{{ g.group.id }}">{{ g.thread_ids | length }} thread{% if g.thread_ids | length != 1 %}s{% endif %}</div>
-              <div class="mrow-actions" id="gactions-{{ g.group.id }}">
-                <button class="btn btn-ghost btn-sm" onclick="toggleGroupPanel({{ g.group.id }}, this)">Threads</button>
-                <button class="btn btn-ghost btn-sm" onclick="startEdit('g',{{ g.group.id }})">Edit</button>
-                <form method="post" action="/groups/{{ g.group.id }}/delete">
-                  <button class="btn btn-red btn-sm" type="submit">Remove</button>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div id="gpanel-{{ g.group.id }}" style="display:none; padding:0.6rem 0.8rem; background:#fafaf8; border:1px solid #eeece8; border-radius:8px; margin-top:0.3rem; display:none;">
-            <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
-              {% for td in threads_data %}
-              {% set checked = td.thread.id in g.thread_ids %}
-              <label style="display:contents;cursor:pointer;">
-                <input type="checkbox" style="display:none"
-                       {% if checked %}checked{% endif %}
-                       onchange="toggleGroupThread({{ g.group.id }}, {{ td.thread.id }}, this.checked, this.nextElementSibling)" />
-                <span class="gthread-chip {% if checked %}gthread-chip--on{% endif %}"
-                      style="--chip-color:{{ td.color }}"
-                      onclick="this.previousElementSibling.click()">
-                  <span style="width:7px;height:7px;border-radius:50%;background:{{ td.color }};display:inline-block;flex-shrink:0"></span>
-                  {{ td.thread.name }}
-                </span>
-              </label>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      <hr class="div" />
-      {% endif %}
-      <div class="add-row">
-        <form method="post" action="/groups" style="display:flex;gap:0.5rem;flex:1">
-          <input name="name" type="text" placeholder="New group name…" required autocomplete="off" maxlength="18" />
-          <button class="btn btn-dark" type="submit">Create</button>
-        </form>
-      </div>
-    </div>
-    </div><!-- end groups manage-col -->
-
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
-  /* ── tab switching ── */
-  function switchTab(name) {
-    ['home','manage'].forEach(t => {
-      document.getElementById('view-' + t).style.display = t === name ? '' : 'none';
-      document.getElementById('btn-' + t).classList.toggle('active', t === name);
-    });
-    const homeOnly = document.getElementById('gf-all').closest('.nav-filter');
-    homeOnly.style.display = name === 'home' ? '' : 'none';
-    document.getElementById('nav-effort-bar').classList.toggle(
-      'visible', name === 'home' && document.getElementById('gf-me').classList.contains('active'));
-    try { localStorage.setItem('pp-tab', name); } catch(e) {}
-    if (name === 'manage') _clearSearchInput && _clearSearchInput();
-  }
-  const stored = (() => { try { return localStorage.getItem('pp-tab'); } catch(e) { return null; } })();
-  switchTab(stored || 'home');
-
   /* ── thread selection (multi-open, 2-per-row, draggable) ── */
   const _openThreads = new Set();
   let _sidebarDeadlineOnly = false;
@@ -1450,6 +987,18 @@
     _syncEmptyState();
   }
 
+  /* ── thread rename / delete (inline on the card) ── */
+  function startThreadEdit(id) {
+    if (!_openThreads.has(String(id))) selectThread(id);
+    const form = document.getElementById('tdv-edit-' + id);
+    form.style.display = 'flex';
+    const inp = form.querySelector('input[name="name"]');
+    if (inp) { inp.focus(); inp.select(); }
+  }
+  function cancelThreadEdit(id) {
+    document.getElementById('tdv-edit-' + id).style.display = 'none';
+  }
+
   /* restore open threads in saved order */
   (() => {
     try {
@@ -1474,14 +1023,6 @@
       _setAddBtn(btn, true);
       const inp = panel.querySelector('input[name="description"]');
       if (inp) inp.focus();
-      const sel = panel.querySelector('select[name="person_id"]');
-      if (sel) _checkEffortVisibility(sel);
-      // Reset effort buttons to Standard
-      panel.querySelectorAll('.effort-pick-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.level === 'standard');
-      });
-      const efHidden = panel.querySelector('input[name="effort"]');
-      if (efHidden) efHidden.value = 'standard';
       // Reset deadline toggle
       const dlBtn = panel.querySelector('.deadline-toggle-btn');
       if (dlBtn) { dlBtn.classList.remove('active'); dlBtn.nextElementSibling.value = '0'; }
@@ -1489,25 +1030,6 @@
       const tid = panel.querySelector('[name="thread_id"]')?.value;
       if (tid) pickDueType(tid, 'ANYTIME', panel.querySelectorAll('.due-type-btn')[1]);
     }
-  }
-
-  /* ── manage inline edit ── */
-  function startEdit(pfx, id) {
-    ['label','right','emoji'].forEach(p => {
-      const el = document.getElementById(pfx + p + '-' + id);
-      if (el) el.style.display = 'none';
-    });
-    const form = document.getElementById(pfx + 'edit-' + id);
-    form.style.display = 'flex';
-    const inp = form.querySelector('input[name="name"]');
-    if (inp) inp.focus();
-  }
-  function cancelEdit(pfx, id) {
-    ['label','right','emoji'].forEach(p => {
-      const el = document.getElementById(pfx + p + '-' + id);
-      if (el) el.style.display = '';
-    });
-    document.getElementById(pfx + 'edit-' + id).style.display = 'none';
   }
 
   /* ── task notes ── */
@@ -1549,13 +1071,6 @@
     } else {
       btns[0].classList.add('active');
     }
-    // init effort visibility + active button
-    const sel = panel.querySelector('select[name="person_id"]');
-    if (sel) _checkEffortVisibility(sel);
-    const currentEffort = panel.querySelector('input[name="effort"]')?.value || 'standard';
-    panel.querySelectorAll('.effort-pick-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.level === currentEffort);
-    });
     panel.querySelector('input[name="description"]').focus();
   }
   function cancelTaskEdit(id) {
@@ -1579,115 +1094,14 @@
     }
   }
 
-  /* ── update thread counts based on current filter ── */
-  function updateThreadCounts(mode) {
-    document.querySelectorAll('.tn-item[data-id]').forEach(item => {
-      const view = document.getElementById('td-view-' + item.dataset.id);
-      const badge = item.querySelector('.tn-count');
-      if (!view) return;
-      const all  = view.querySelectorAll('.tc-task-wrap').length;
-      const mine = view.querySelectorAll('.tc-task-wrap[data-is-me="true"]').length;
-      const n = mode === 'me' ? mine : all;
-      if (badge) { badge.textContent = n || ''; badge.style.visibility = n ? '' : 'hidden'; }
-      else if (n) {
-        const span = document.createElement('span');
-        span.className = 'tn-count';
-        span.textContent = n;
-        item.appendChild(span);
-      }
-      // also update the open thread detail header count
-      const hdrBadge = view.querySelector('.tdv-header .tc-count');
-      if (hdrBadge) { hdrBadge.textContent = n || ''; hdrBadge.style.visibility = n ? '' : 'hidden'; }
-    });
-  }
-
-  /* ── global home filter ── */
-  function setGlobalFilter(mode) {
-    document.getElementById('gf-all').classList.toggle('active', mode === 'all');
-    document.getElementById('gf-me').classList.toggle('active', mode === 'me');
-    document.getElementById('nav-effort-bar').classList.toggle('visible', mode === 'me' && document.getElementById('btn-home').classList.contains('active'));
-    if (mode === 'all') {
-      document.querySelectorAll('.tc-task-wrap, .tc-group').forEach(el => el.style.display = '');
-      document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = 'none');
-      setGlobalEffortFilter('all', document.getElementById('ef-all'));
-      // collapse effort panel when leaving Me mode
-      if (_effortExpanded) toggleEffortExpanded();
-    } else {
-      document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = _effortExpanded ? '' : 'none');
-      document.querySelectorAll('.tc-task-wrap').forEach(el => {
-        el.style.display = (el.dataset.isMe === 'true') ? '' : 'none';
-      });
-      document.querySelectorAll('.tc-group').forEach(g => {
-        g.style.display = g.querySelectorAll('.tc-task-wrap[data-is-me="true"]').length ? '' : 'none';
-      });
-    }
-    updateThreadCounts(mode);
-    _updateSidebar();
-    try { localStorage.setItem('pp-gf', mode); } catch(e) {}
-  }
-
-  let _effortExpanded = false;
-  function toggleEffortExpanded() {
-    _effortExpanded = !_effortExpanded;
-    document.getElementById('effort-btns').style.display = _effortExpanded ? 'flex' : 'none';
-    document.getElementById('effort-label').textContent = _effortExpanded ? 'Effort ‹' : 'Effort ›';
-    const inMe = document.getElementById('gf-me').classList.contains('active');
-    document.querySelectorAll('[data-effort-tag]').forEach(el => {
-      el.style.display = (_effortExpanded && inMe) ? '' : 'none';
-    });
-    if (!_effortExpanded) {
-      document.querySelectorAll('#nav-effort-bar .nav-effort-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('ef-all').classList.add('active');
-      setGlobalEffortFilter('all', null);
-      try { localStorage.removeItem('pp-effort-level'); } catch(e) {}
-    }
-    try { localStorage.setItem('pp-effort-expanded', _effortExpanded ? '1' : '0'); } catch(e) {}
-  }
-
-  function setGlobalEffortFilter(level, btn) {
-    if (btn) {
-      document.querySelectorAll('#nav-effort-bar .nav-effort-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-    document.querySelectorAll('.tc-task-wrap').forEach(wrap => {
-      if (level === 'all') { wrap.style.display = wrap.dataset.isMe === 'true' || document.getElementById('gf-all').classList.contains('active') ? '' : 'none'; return; }
-      const effort = (wrap.querySelector('.tc-effort') || {}).dataset?.effort;
-      const meVisible = wrap.dataset.isMe === 'true';
-      wrap.style.display = (meVisible && effort === level) ? '' : 'none';
-    });
-    document.querySelectorAll('.tc-group').forEach(g => {
-      g.style.display = [...g.querySelectorAll('.tc-task-wrap')].some(w => w.style.display !== 'none') ? '' : 'none';
-    });
-    _updateSidebar();
-    _sortThreadsByHeight();
-    try { localStorage.setItem('pp-effort-level', level); } catch(e) {}
-  }
-  // Effort tags hidden by default; shown only in Me mode
-  document.querySelectorAll('[data-effort-tag]').forEach(el => el.style.display = 'none');
-  const _storedGf = (() => { try { return localStorage.getItem('pp-gf'); } catch(e) { return null; } })();
-  if (_storedGf) setGlobalFilter(_storedGf);
-  if (localStorage.getItem('pp-effort-expanded') === '1') toggleEffortExpanded();
-  const _storedEffortLevel = (() => { try { return localStorage.getItem('pp-effort-level'); } catch(e) { return null; } })();
-  if (_storedEffortLevel && _storedEffortLevel !== 'all') {
-    const btn = document.getElementById('ef-' + _storedEffortLevel);
-    if (btn) setGlobalEffortFilter(_storedEffortLevel, btn);
-  }
-
-  /* ── sidebar: filter by selected threads + global me/all ── */
+  /* ── sidebar: filter by selected (open) threads + deadline mode ── */
   function _updateSidebar() {
-    const isMe = document.getElementById('gf-me').classList.contains('active');
-    const activeEffortBtn = document.querySelector('#nav-effort-bar .nav-effort-btn.active');
-    const effortLevel = (isMe && activeEffortBtn && activeEffortBtn.id !== 'ef-all')
-      ? activeEffortBtn.id.replace('ef-', '')
-      : 'all';
     const sidebar = document.querySelector('.sidebar');
     sidebar.querySelectorAll('.sb-item').forEach(el => {
-      const meOk = !isMe || el.dataset.isMe === 'true';
-      const effortOk = effortLevel === 'all' || el.dataset.effort === effortLevel;
       const threadOk = _openThreads.has(el.dataset.threadId);
       const visible = _sidebarDeadlineOnly
-        ? el.dataset.isDeadline === '1' && threadOk && meOk && effortOk
-        : threadOk && meOk && effortOk;
+        ? el.dataset.isDeadline === '1' && threadOk
+        : threadOk;
       el.style.display = visible ? '' : 'none';
     });
     sidebar.querySelectorAll('.sb-group').forEach(g => {
@@ -1725,7 +1139,6 @@
       lower.style.maxHeight = '';
     }
 
-    // Restore saved height
     const saved = (() => { try { return localStorage.getItem('pp-anytime-h'); } catch(e) { return null; } })();
     if (saved && lower.classList.contains('expanded')) applyHeight(+saved);
 
@@ -1753,7 +1166,6 @@
         handle.classList.remove('dragging');
         if (dragging) {
           try { localStorage.setItem('pp-anytime-h', lower.getBoundingClientRect().height); } catch(e) {}
-          // Swallow the click that fires after mouseup to prevent triggering toggleSbGroup
           window.addEventListener('click', e => e.stopPropagation(), { capture: true, once: true });
         }
         document.removeEventListener('mousemove', onMove);
@@ -1774,58 +1186,11 @@
     if (lower) {
       lower.classList.toggle('expanded', !collapsed);
       if (!collapsed) {
-        // Re-apply saved height when expanding
         const saved = (() => { try { return localStorage.getItem('pp-anytime-h'); } catch(e) { return null; } })();
         if (saved) { lower.style.height = (+saved) + 'px'; lower.style.maxHeight = ''; }
         else { lower.style.height = ''; lower.style.maxHeight = '33%'; }
       }
     }
-  }
-
-  /* ── manage history ── */
-  function toggleHistory(threadId, btn) {
-    const panel = document.getElementById('thist-' + threadId);
-    const open = panel.classList.toggle('open');
-    btn.textContent = open ? 'Hide' : 'History';
-  }
-  function confirmDel(name, open, kind) {
-    if (open > 0) return false;
-    return confirm('Remove ' + kind + ' "' + name + '"?');
-  }
-
-  /* ── emoji picker ── */
-  function toggleEmojiPicker(id) {
-    const grid = document.getElementById('ep-grid-' + id);
-    const isOpen = grid.classList.contains('open');
-    document.querySelectorAll('.ep-grid.open').forEach(g => g.classList.remove('open'));
-    if (!isOpen) grid.classList.add('open');
-  }
-  function pickEmoji(id, emoji) {
-    document.getElementById('ep-val-' + id).value = emoji;
-    document.getElementById('ep-btn-' + id).textContent = emoji;
-    document.getElementById('ep-grid-' + id).classList.remove('open');
-  }
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.ep-wrap'))
-      document.querySelectorAll('.ep-grid.open').forEach(g => g.classList.remove('open'));
-  });
-
-  /* ── effort fields: show when Me is selected ── */
-  const _meId = {{ me_id | tojson }};
-  function _checkEffortVisibility(sel) {
-    const form = sel.closest('form');
-    const isMe = _meId && String(sel.value) === String(_meId);
-    const efPanel = form.querySelector('.effort-fields');
-    if (!efPanel) return;
-    efPanel.style.display = isMe ? 'flex' : 'none';
-  }
-
-  function pickEffort(btn) {
-    const row = btn.closest('.effort-btn-row');
-    row.querySelectorAll('.effort-pick-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const hidden = btn.closest('.effort-fields').querySelector('input[name="effort"]');
-    if (hidden) hidden.value = btn.dataset.level;
   }
 
   function toggleDeadline(btn) {
@@ -1860,42 +1225,6 @@
     }
   }
 
-function handlePersonSel(sel) {
-    _checkEffortVisibility(sel);
-    if (sel.value !== '__new__') return;
-    sel.value = '';
-    const wrap = sel.nextElementSibling;
-    wrap.classList.add('open');
-    wrap.querySelector('.qap-input').focus();
-  }
-  async function quickAddPerson(input) {
-    const name = input.value.trim();
-    if (!name) { input.focus(); return; }
-    input.disabled = true;
-    const wrap = input.closest('.qap-wrap');
-    const sel  = wrap.previousElementSibling;
-    try {
-      const res = await fetch('/people/quick', {
-        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'name=' + encodeURIComponent(name),
-      });
-      const p = await res.json();
-      const label = p.emoji + ' ' + p.name;
-      document.querySelectorAll('select[name="person_id"]').forEach(s => {
-        const addOpt = s.querySelector('option[value="__new__"]');
-        s.insertBefore(new Option(label, p.id), addOpt);
-      });
-      sel.value = p.id;
-    } finally {
-      wrap.classList.remove('open');
-      input.value = ''; input.disabled = false;
-    }
-  }
-  function cancelQap(input) {
-    input.value = '';
-    input.closest('.qap-wrap').classList.remove('open');
-  }
-
   /* ── groups ── */
   function toggleGroup(id) {
     const item = document.querySelector('.tn-group-item[data-group-id="' + id + '"]');
@@ -1917,11 +1246,14 @@ function handlePersonSel(sel) {
     });
   }
 
-  function toggleGroupPanel(groupId, btn) {
+  function toggleGroupEdit(groupId) {
     const panel = document.getElementById('gpanel-' + groupId);
     const opening = panel.style.display === 'none';
-    panel.style.display = opening ? 'block' : 'none';
-    btn.textContent = opening ? 'Done' : 'Threads';
+    panel.style.display = opening ? 'flex' : 'none';
+    if (opening) {
+      const inp = panel.querySelector('input[name="name"]');
+      if (inp) inp.focus();
+    }
   }
 
   async function toggleGroupThread(groupId, threadId, add, chipEl) {
@@ -1939,15 +1271,20 @@ function handlePersonSel(sel) {
       const ids = new Set((navItem.dataset.threadIds || '').split(',').filter(Boolean));
       add ? ids.add(String(threadId)) : ids.delete(String(threadId));
       navItem.dataset.threadIds = [...ids].join(',');
-      const countEl = navItem.querySelector('.tn-count');
+      let countEl = navItem.querySelector('.tn-count');
+      if (ids.size && !countEl) {
+        countEl = document.createElement('span');
+        countEl.className = 'tn-count';
+        countEl.style.background = 'transparent';
+        countEl.style.color = '#bbb';
+        navItem.insertBefore(countEl, navItem.querySelector('.tn-group-edit'));
+      }
       if (countEl) countEl.textContent = ids.size || '';
-      const meta = document.getElementById('gmeta-' + groupId);
-      if (meta) meta.textContent = ids.size + ' thread' + (ids.size !== 1 ? 's' : '');
     }
     _updateGroupStates();
   }
 
-  /* ── search ── */
+  /* ── search (matches task description + thread name) ── */
   let _searchOpenedViews = [];
 
   function _doSearch(query) {
@@ -1956,9 +1293,6 @@ function handlePersonSel(sel) {
     try { q ? localStorage.setItem('pp-search', query.trim()) : localStorage.removeItem('pp-search'); } catch(e) {}
     if (!q) { _exitSearch(); return; }
 
-    if (document.getElementById('view-home').style.display === 'none') switchTab('home');
-
-    // Reset state from previous search pass
     _searchOpenedViews.forEach(v => { v.style.display = ''; _pool.appendChild(v); });
     _searchOpenedViews = [];
     _detail.querySelectorAll('.thread-detail-view').forEach(v => v.style.display = '');
@@ -1969,8 +1303,7 @@ function handlePersonSel(sel) {
       const tasks = [...view.querySelectorAll('.tc-task-wrap')];
       const matchingTasks = new Set(tasks.filter(w => {
         const desc = (w.querySelector('.tc-desc')?.textContent || '').toLowerCase();
-        const person = (w.dataset.person || '').toLowerCase();
-        return desc.includes(q) || person.includes(q);
+        return desc.includes(q);
       }));
 
       if (!threadMatch && matchingTasks.size === 0) {
@@ -2012,7 +1345,6 @@ function handlePersonSel(sel) {
     _exitSearch();
   }
 
-  // Restore search after all search state is initialized
   (() => {
     try {
       const q = localStorage.getItem('pp-search');
@@ -2050,13 +1382,12 @@ function handlePersonSel(sel) {
     },
   });
 
-  /* ── drag-and-drop: tasks within groups ── */
-  document.querySelectorAll('.tc-group').forEach(group => {
-    Sortable.create(group, {
+  /* ── drag-and-drop: tasks within a thread ── */
+  document.querySelectorAll('.tc-tasks').forEach(list => {
+    Sortable.create(list, {
       draggable: '.tc-task-wrap', handle: '.tc-drag-handle', animation: 120,
       onEnd() {
-        const view = group.closest('.thread-detail-view');
-        const ids  = [...view.querySelectorAll('.tc-task-wrap[data-id]')].map(el => el.dataset.id);
+        const ids = [...list.querySelectorAll('.tc-task-wrap[data-id]')].map(el => el.dataset.id);
         fetch('/tasks/reorder', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ids }),
@@ -2078,7 +1409,6 @@ function handlePersonSel(sel) {
         el.dispatchEvent(new Event('input', { bubbles: true }));
       },
     });
-    // Start hidden — the wrapper Flatpickr creates must also be hidden
     const wrap = el.closest('.flatpickr-wrapper');
     if (wrap) wrap.style.display = 'none';
   });

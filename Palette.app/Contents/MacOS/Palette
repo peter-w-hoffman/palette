@@ -1,0 +1,7 @@
+#!/bin/bash
+# Palette launcher — opens Palette in a standalone native window (no browser).
+# If you move the project folder, update PROJECT below.
+
+PROJECT="/Users/peterhoffman/Palette"
+
+exec "$PROJECT/.venv/bin/python" "$PROJECT/desktop.py"

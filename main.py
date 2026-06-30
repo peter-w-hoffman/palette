@@ -1,19 +1,19 @@
-import csv
-import io
-import sqlite3
 import random
+import sqlite3
 from contextlib import contextmanager
 from datetime import date, timedelta
 from typing import Optional
+
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from PIL import Image, ImageDraw, ImageFont
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-DB = "pingpong.db"
+DB = "palette.db"
 
+# Emojis used as group icons.
 EMOJIS = [
     # animals
     "🦊", "🐻", "🦁", "🐯", "🐺", "🦝", "🐨", "🦔", "🦦", "🦥",
@@ -51,25 +51,18 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS people (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                name       TEXT NOT NULL,
-                emoji      TEXT NOT NULL DEFAULT '👤',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute("""
             CREATE TABLE IF NOT EXISTS threads (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
                 name       TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-
         conn.execute("""
             CREATE TABLE IF NOT EXISTS groups (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
                 name       TEXT NOT NULL,
+                icon       TEXT DEFAULT '',
                 sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -81,117 +74,22 @@ def init_db():
                 PRIMARY KEY (group_id, thread_id)
             )
         """)
-
-        g_cols = {r[1] for r in conn.execute("PRAGMA table_info(groups)").fetchall()}
-        if "icon" not in g_cols:
-            conn.execute("ALTER TABLE groups ADD COLUMN icon TEXT DEFAULT ''")
-            existing_groups = conn.execute("SELECT id FROM groups ORDER BY created_at").fetchall()
-            used_icons: set = set()
-            for grp in existing_groups:
-                avail = [e for e in EMOJIS if e not in used_icons]
-                icon = random.choice(avail if avail else EMOJIS)
-                used_icons.add(icon)
-                conn.execute("UPDATE groups SET icon=? WHERE id=?", (icon, grp["id"]))
-
-        t_cols = {r[1] for r in conn.execute("PRAGMA table_info(threads)").fetchall()}
-        if "sort_order" not in t_cols:
-            conn.execute("ALTER TABLE threads ADD COLUMN sort_order INTEGER DEFAULT 0")
-            for idx, t in enumerate(
-                conn.execute("SELECT id FROM threads ORDER BY created_at ASC").fetchall()
-            ):
-                conn.execute("UPDATE threads SET sort_order=? WHERE id=?", (idx, t["id"]))
-        if "is_active" not in t_cols:
-            conn.execute("ALTER TABLE threads ADD COLUMN is_active INTEGER DEFAULT 1")
-
-        col_info = conn.execute("PRAGMA table_info(tasks)").fetchall()
-        cols = {r[1]: r for r in col_info}
-
-        if not cols:
-            _create_tasks_table(conn)
-        else:
-            person_col = cols.get("person_id")
-            needs_rebuild = person_col and person_col[3] == 1
-
-            if needs_rebuild:
-                conn.execute("ALTER TABLE tasks RENAME TO tasks_bak")
-                _create_tasks_table(conn)
-                kept = [c for c in cols if c != "rowid"]
-                cs = ", ".join(kept)
-                conn.execute(f"INSERT INTO tasks ({cs}) SELECT {cs} FROM tasks_bak")
-                conn.execute("DROP TABLE tasks_bak")
-            else:
-                if "notes" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN notes TEXT")
-                if "closed_at" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN closed_at TIMESTAMP")
-                if "effort" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN effort TEXT")
-                if "est_hours" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN est_hours REAL")
-                if "sort_order" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0")
-                    rows = conn.execute(
-                        "SELECT id FROM tasks ORDER BY thread_id, "
-                        "CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC, created_at DESC"
-                    ).fetchall()
-                    for i, row in enumerate(rows):
-                        conn.execute("UPDATE tasks SET sort_order=? WHERE id=?", (i, row["id"]))
-                if "thread_id" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN thread_id INTEGER REFERENCES threads(id)")
-                    conn.execute("INSERT OR IGNORE INTO threads (id, name) VALUES (1, 'General')")
-                    conn.execute("UPDATE tasks SET thread_id = 1 WHERE thread_id IS NULL")
-                if "due_date" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN due_date TEXT")
-                if "is_deadline" not in cols:
-                    conn.execute("ALTER TABLE tasks ADD COLUMN is_deadline INTEGER DEFAULT 0")
-
-        # Grandfather all NULL due_dates as ANYTIME and NULL effort as standard (me only)
-        conn.execute("UPDATE tasks SET due_date = 'ANYTIME' WHERE due_date IS NULL")
-        me_row = conn.execute("SELECT id FROM people WHERE LOWER(name)='me' LIMIT 1").fetchone()
-        me_id = me_row["id"] if me_row else None
-        if me_id:
-            conn.execute(
-                "UPDATE tasks SET effort = 'standard' WHERE effort IS NULL AND person_id = ?",
-                (me_id,)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                thread_id   INTEGER REFERENCES threads(id),
+                description TEXT NOT NULL,
+                due_date    TEXT,
+                notes       TEXT,
+                closed_at   TIMESTAMP,
+                sort_order  INTEGER DEFAULT 0,
+                is_deadline INTEGER DEFAULT 0,
+                status      TEXT NOT NULL DEFAULT 'open',
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        # Clear effort from any tasks not assigned to me
-        conn.execute(
-            "UPDATE tasks SET effort = NULL WHERE person_id IS NULL OR person_id != ?",
-            (me_id,) if me_id else (0,)
-        )
-
-
-def _create_tasks_table(conn):
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS tasks (
-            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-            thread_id          INTEGER REFERENCES threads(id),
-            description        TEXT NOT NULL,
-            person_id          INTEGER REFERENCES people(id),
-            due_date           TEXT,
-            notes              TEXT,
-            closed_at          TIMESTAMP,
-            effort             TEXT,
-            est_hours          REAL,
-            sort_order         INTEGER DEFAULT 0,
-            is_deadline        INTEGER DEFAULT 0,
-            status             TEXT NOT NULL DEFAULT 'open',
-            created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            blocked_by_task_id INTEGER REFERENCES tasks(id)
-        )
-    """)
-
-
-def _seed_defaults():
-    with get_conn() as conn:
-        conn.execute("INSERT OR IGNORE INTO people (name, emoji) SELECT 'Me', '🐒' WHERE NOT EXISTS (SELECT 1 FROM people WHERE LOWER(name) = 'me')")
-        conn.execute("UPDATE people SET emoji = '🐒' WHERE LOWER(name) = 'me'")
-
-
-def _pick_emoji(conn):
-    used = {row[0] for row in conn.execute("SELECT emoji FROM people").fetchall()}
-    available = [e for e in EMOJIS if e not in used]
-    return random.choice(available if available else EMOJIS)
+        """)
+        # Grandfather any NULL due_dates as ANYTIME.
+        conn.execute("UPDATE tasks SET due_date = 'ANYTIME' WHERE due_date IS NULL")
 
 
 def _pick_group_emoji(conn):
@@ -201,7 +99,6 @@ def _pick_group_emoji(conn):
 
 
 init_db()
-_seed_defaults()
 
 
 # ── Jinja2 filters ────────────────────────────────────────────────────────────
@@ -244,102 +141,29 @@ def date_cls(s):
         return ""
 
 
-def fmt_ts(s):
-    if not s:
-        return ""
-    try:
-        from datetime import datetime
-        dt = datetime.fromisoformat(s)
-        return dt.strftime("%-m/%-d/%y %-I:%M %p").replace("AM","am").replace("PM","pm")
-    except Exception:
-        return s
-
-
 templates.env.filters["fmt_date"] = fmt_date
 templates.env.filters["date_cls"] = date_cls
-templates.env.filters["fmt_ts"]   = fmt_ts
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def _people_with_counts(conn):
-    return conn.execute("""
-        SELECT p.*,
-               COUNT(CASE WHEN t.status='open' THEN 1 END) AS open_count
-        FROM people p
-        LEFT JOIN tasks t ON t.person_id = p.id
-        GROUP BY p.id
-        ORDER BY CASE WHEN LOWER(p.name) = 'me' THEN 0 ELSE 1 END, p.name COLLATE NOCASE
-    """).fetchall()
-
-
 def _threads_with_tasks(conn):
     threads = conn.execute(
-        "SELECT * FROM threads WHERE is_active = 1 ORDER BY sort_order ASC, created_at ASC"
+        "SELECT * FROM threads ORDER BY sort_order ASC, created_at ASC"
     ).fetchall()
     result = []
     for i, thread in enumerate(threads):
         tasks = conn.execute("""
-            SELECT t.*, p.name AS person_name, p.emoji AS person_emoji
-            FROM tasks t
-            LEFT JOIN people p ON t.person_id = p.id
-            WHERE t.thread_id = ? AND t.status = 'open'
-            ORDER BY t.sort_order ASC, t.created_at DESC
-        """, (thread["id"],)).fetchall()
-
-        now_tasks = [t for t in tasks if not t["person_id"]]
-        person_order, person_map = [], {}
-        for t in tasks:
-            if t["person_id"]:
-                pid = t["person_id"]
-                if pid not in person_map:
-                    person_map[pid] = {
-                        "label": f"{t['person_emoji']} {t['person_name']}",
-                        "tasks": [],
-                    }
-                    person_order.append(pid)
-                person_map[pid]["tasks"].append(t)
-
-        groups = []
-        if now_tasks:
-            groups.append({"label": "Now", "is_now": True, "tasks": now_tasks})
-        for pid in person_order:
-            groups.append({"label": person_map[pid]["label"], "is_now": False,
-                           "tasks": person_map[pid]["tasks"]})
-
-        open_count = len(tasks)
-        total_count = conn.execute(
-            "SELECT COUNT(*) FROM tasks WHERE thread_id=?", (thread["id"],)
-        ).fetchone()[0]
-        closed_tasks = conn.execute("""
-            SELECT t.*, p.name AS person_name, p.emoji AS person_emoji
-            FROM tasks t
-            LEFT JOIN people p ON t.person_id = p.id
-            WHERE t.thread_id = ? AND t.status = 'closed'
-            ORDER BY t.created_at DESC
-        """, (thread["id"],)).fetchall()
-
-        thread_people = conn.execute("""
-            SELECT p.*,
-                   COUNT(t.id) AS thread_count
-            FROM people p
-            LEFT JOIN tasks t ON t.person_id = p.id AND t.thread_id = ?
-            GROUP BY p.id
-            ORDER BY
-                CASE WHEN LOWER(p.name) = 'me' THEN 0 ELSE 1 END,
-                COUNT(t.id) DESC,
-                p.name COLLATE NOCASE
+            SELECT * FROM tasks
+            WHERE thread_id = ? AND status = 'open'
+            ORDER BY sort_order ASC, created_at DESC
         """, (thread["id"],)).fetchall()
 
         result.append({
-            "thread":       thread,
-            "tasks":        tasks,
-            "groups":       groups,
-            "open_count":   open_count,
-            "total_count":  total_count,
-            "closed_tasks": closed_tasks,
-            "color":        THREAD_COLORS[i % len(THREAD_COLORS)],
-            "people":       thread_people,
+            "thread":     thread,
+            "tasks":      tasks,
+            "open_count": len(tasks),
+            "color":      THREAD_COLORS[i % len(THREAD_COLORS)],
         })
     return result
 
@@ -349,38 +173,27 @@ def _groups_with_threads(conn):
     result = []
     for g in groups:
         thread_ids = [r["thread_id"] for r in
-                      conn.execute("""SELECT gt.thread_id FROM group_threads gt
-                                      JOIN threads th ON th.id = gt.thread_id
-                                      WHERE gt.group_id = ? AND th.is_active = 1""",
+                      conn.execute("SELECT thread_id FROM group_threads WHERE group_id = ?",
                                    (g["id"],)).fetchall()]
         result.append({"group": g, "thread_ids": thread_ids})
     return result
 
 
-def _due_sidebar(conn, color_map, today):
-    me_row = conn.execute(
-        "SELECT id FROM people WHERE LOWER(name) = 'me' LIMIT 1"
-    ).fetchone()
-    me_id = me_row["id"] if me_row else None
-
+def _due_sidebar(conn, color_map, name_map, today):
     rows = conn.execute("""
-        SELECT t.*, p.name AS person_name, p.emoji AS person_emoji,
-               th.name AS thread_name
-        FROM tasks t
-        LEFT JOIN people p   ON t.person_id  = p.id
-        LEFT JOIN threads th ON t.thread_id  = th.id
-        WHERE t.status = 'open' AND (th.is_active = 1 OR th.id IS NULL)
+        SELECT * FROM tasks
+        WHERE status = 'open'
         ORDER BY
-            CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
-            t.due_date ASC,
-            t.created_at ASC
+            CASE WHEN due_date IS NULL THEN 1 ELSE 0 END,
+            due_date ASC,
+            created_at ASC
     """).fetchall()
 
     overdue_tasks, asap_tasks, dated_tasks, anytime_tasks = [], [], [], []
     for row in rows:
         task = dict(row)
         task["thread_color"] = color_map.get(task["thread_id"], "#aaa")
-        task["is_me"] = bool(me_id and task["person_id"] == me_id)
+        task["thread_name"] = name_map.get(task["thread_id"], "")
         d = task["due_date"]
         if not d or d == 'ANYTIME':
             anytime_tasks.append(task)
@@ -399,14 +212,12 @@ def _due_sidebar(conn, color_map, today):
 
     if overdue_tasks:
         upper_groups.append({
-            "label": "Overdue", "cls": "overdue", "is_now": False, "is_anytime": False,
-            "person_groups": [], "tasks": overdue_tasks,
+            "label": "Overdue", "cls": "overdue", "tasks": overdue_tasks,
         })
 
     if asap_tasks:
         upper_groups.append({
-            "label": "ASAP", "cls": "asap", "is_now": False, "is_anytime": False,
-            "person_groups": [], "tasks": asap_tasks,
+            "label": "ASAP", "cls": "asap", "tasks": asap_tasks,
         })
 
     dated_map, dated_order = {}, []
@@ -419,18 +230,14 @@ def _due_sidebar(conn, color_map, today):
         else:
             key, label, cls = d.isoformat(), d.strftime("%a, %b %-d"), "future"
         if key not in dated_map:
-            dated_map[key] = {"label": label, "cls": cls, "is_now": False, "is_anytime": False,
-                              "person_groups": [], "tasks": []}
+            dated_map[key] = {"label": label, "cls": cls, "tasks": []}
             dated_order.append(key)
         dated_map[key]["tasks"].append(task)
     upper_groups.extend(dated_map[k] for k in dated_order)
 
     anytime_group = None
     if anytime_tasks:
-        anytime_group = {
-            "label": "Anytime", "cls": "anytime", "is_now": False, "is_anytime": True,
-            "person_groups": [], "tasks": anytime_tasks,
-        }
+        anytime_group = {"label": "Anytime", "cls": "anytime", "tasks": anytime_tasks}
 
     return upper_groups, anytime_group
 
@@ -439,6 +246,7 @@ def _due_sidebar(conn, color_map, today):
 
 _icon_cache = None
 
+
 @app.get("/icon-192.png")
 async def app_icon():
     global _icon_cache
@@ -446,10 +254,11 @@ async def app_icon():
         img = Image.new("RGBA", (192, 192), (0, 0, 0, 0))
         d   = ImageDraw.Draw(img)
         fnt = ImageFont.truetype("/System/Library/Fonts/Apple Color Emoji.ttc", 160)
-        bb  = d.textbbox((0, 0), "🏓", font=fnt, embedded_color=True)
+        bb  = d.textbbox((0, 0), "🎨", font=fnt, embedded_color=True)
         x   = (192 - (bb[2] - bb[0])) // 2 - bb[0]
         y   = (192 - (bb[3] - bb[1])) // 2 - bb[1]
-        d.text((x, y), "🏓", font=fnt, embedded_color=True)
+        d.text((x, y), "🎨", font=fnt, embedded_color=True)
+        import io
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         _icon_cache = buf.getvalue()
@@ -460,8 +269,8 @@ async def app_icon():
 @app.get("/manifest.json")
 async def manifest():
     return JSONResponse({
-        "name": "🏓",
-        "short_name": "🏓",
+        "name": "Palette",
+        "short_name": "Palette",
         "start_url": "/",
         "display": "standalone",
         "display_override": ["window-controls-overlay"],
@@ -472,32 +281,22 @@ async def manifest():
         ]
     })
 
+
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, tab: str = "home"):
+async def index(request: Request):
     today = date.today()
     with get_conn() as conn:
         threads_data = _threads_with_tasks(conn)
-        people       = _people_with_counts(conn)
         color_map    = {td["thread"]["id"]: td["color"] for td in threads_data}
-        due_upper, due_anytime = _due_sidebar(conn, color_map, today)
-        me_row       = conn.execute("SELECT id FROM people WHERE LOWER(name)='me' LIMIT 1").fetchone()
-        me_id        = me_row["id"] if me_row else None
-        groups_data     = _groups_with_threads(conn)
-        inactive_threads = conn.execute(
-            "SELECT * FROM threads WHERE is_active = 0 ORDER BY sort_order ASC, created_at ASC"
-        ).fetchall()
-    return templates.TemplateResponse("index.html", {
-        "request":          request,
-        "threads_data":     threads_data,
-        "people":           people,
-        "due_upper":        due_upper,
-        "due_anytime":      due_anytime,
-        "tab":              tab,
-        "today":            today.isoformat(),
-        "me_id":            me_id,
-        "all_emojis":       EMOJIS,
-        "groups_data":      groups_data,
-        "inactive_threads": inactive_threads,
+        name_map     = {td["thread"]["id"]: td["thread"]["name"] for td in threads_data}
+        due_upper, due_anytime = _due_sidebar(conn, color_map, name_map, today)
+        groups_data  = _groups_with_threads(conn)
+    return templates.TemplateResponse(request, "index.html", {
+        "threads_data": threads_data,
+        "due_upper":    due_upper,
+        "due_anytime":  due_anytime,
+        "today":        today.isoformat(),
+        "groups_data":  groups_data,
     })
 
 
@@ -514,25 +313,19 @@ async def reorder_tasks(request: Request):
 
 @app.post("/tasks")
 async def create_task(
-    description:  str           = Form(...),
-    thread_id:    int           = Form(...),
-    person_id:    Optional[int] = Form(None),
-    due_date:     str           = Form(""),
-    effort:       str           = Form(""),
-    is_deadline:  str           = Form("0"),
+    description: str = Form(...),
+    thread_id:   int = Form(...),
+    due_date:    str = Form(""),
+    is_deadline: str = Form("0"),
 ):
     with get_conn() as conn:
-        me_row = conn.execute("SELECT id FROM people WHERE LOWER(name)='me' LIMIT 1").fetchone()
-        me_id = me_row["id"] if me_row else None
-        is_me = me_id and person_id == me_id
         max_order = conn.execute(
             "SELECT COALESCE(MAX(sort_order), -1) FROM tasks WHERE thread_id=?", (thread_id,)
         ).fetchone()[0]
         conn.execute(
-            "INSERT INTO tasks (thread_id, description, person_id, due_date, effort, sort_order, is_deadline) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (thread_id, description.strip(), person_id or None, due_date or None,
-             effort.strip() or None if is_me else None, max_order + 1,
+            "INSERT INTO tasks (thread_id, description, due_date, sort_order, is_deadline) "
+            "VALUES (?,?,?,?,?)",
+            (thread_id, description.strip(), due_date or None, max_order + 1,
              1 if is_deadline == "1" else 0),
         )
     return RedirectResponse("/", status_code=303)
@@ -547,24 +340,17 @@ async def update_task_notes(task_id: int, notes: str = Form("")):
 
 @app.post("/tasks/{task_id}/update")
 async def update_task(
-    task_id:      int,
-    description:  str           = Form(...),
-    person_id:    Optional[int] = Form(None),
-    due_date:     str           = Form(""),
-    effort:       str           = Form(""),
-    is_deadline:  str           = Form("0"),
+    task_id:     int,
+    description: str = Form(...),
+    due_date:    str = Form(""),
+    is_deadline: str = Form("0"),
 ):
     with get_conn() as conn:
-        me_row = conn.execute("SELECT id FROM people WHERE LOWER(name)='me' LIMIT 1").fetchone()
-        me_id  = me_row["id"] if me_row else None
-        is_me  = me_id and person_id == me_id
         conn.execute(
-            "UPDATE tasks SET description=?, person_id=?, due_date=?, effort=?, is_deadline=? WHERE id=?",
+            "UPDATE tasks SET description=?, due_date=?, is_deadline=? WHERE id=?",
             (
                 description.strip(),
-                person_id or None,
                 due_date or "ANYTIME",
-                effort.strip() or None if is_me else None,
                 1 if is_deadline == "1" else 0,
                 task_id,
             ),
@@ -576,13 +362,6 @@ async def update_task(
 async def close_task(task_id: int):
     with get_conn() as conn:
         conn.execute("UPDATE tasks SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE id=?", (task_id,))
-    return RedirectResponse("/", status_code=303)
-
-
-@app.post("/tasks/{task_id}/reopen")
-async def reopen_task(task_id: int):
-    with get_conn() as conn:
-        conn.execute("UPDATE tasks SET status='open' WHERE id=?", (task_id,))
     return RedirectResponse("/", status_code=303)
 
 
@@ -609,21 +388,16 @@ async def reorder_threads(request: Request):
 async def update_thread(thread_id: int, name: str = Form(...)):
     with get_conn() as conn:
         conn.execute("UPDATE threads SET name=? WHERE id=?", (name.strip(), thread_id))
-    return RedirectResponse("/?tab=manage", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/threads/{thread_id}/delete")
 async def delete_thread(thread_id: int):
     with get_conn() as conn:
-        conn.execute("UPDATE threads SET is_active = 0 WHERE id=?", (thread_id,))
-    return RedirectResponse("/?tab=manage", status_code=303)
-
-
-@app.post("/threads/{thread_id}/activate")
-async def activate_thread(thread_id: int):
-    with get_conn() as conn:
-        conn.execute("UPDATE threads SET is_active = 1 WHERE id=?", (thread_id,))
-    return RedirectResponse("/?tab=manage", status_code=303)
+        conn.execute("DELETE FROM tasks WHERE thread_id=?", (thread_id,))
+        conn.execute("DELETE FROM group_threads WHERE thread_id=?", (thread_id,))
+        conn.execute("DELETE FROM threads WHERE id=?", (thread_id,))
+    return RedirectResponse("/", status_code=303)
 
 
 # Groups
@@ -634,14 +408,14 @@ async def create_group(name: str = Form(...)):
         max_order = conn.execute("SELECT COALESCE(MAX(sort_order), -1) FROM groups").fetchone()[0]
         icon = _pick_group_emoji(conn)
         conn.execute("INSERT INTO groups (name, sort_order, icon) VALUES (?,?,?)", (name.strip(), max_order + 1, icon))
-    return RedirectResponse("/?tab=manage", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/groups/{group_id}/update")
 async def update_group(group_id: int, name: str = Form(...)):
     with get_conn() as conn:
         conn.execute("UPDATE groups SET name=? WHERE id=?", (name.strip(), group_id))
-    return RedirectResponse("/?tab=manage", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/groups/{group_id}/delete")
@@ -649,7 +423,7 @@ async def delete_group(group_id: int):
     with get_conn() as conn:
         conn.execute("DELETE FROM group_threads WHERE group_id=?", (group_id,))
         conn.execute("DELETE FROM groups WHERE id=?", (group_id,))
-    return RedirectResponse("/?tab=manage", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/groups/{group_id}/threads/add")
@@ -666,122 +440,3 @@ async def remove_thread_from_group(group_id: int, thread_id: int):
         conn.execute("DELETE FROM group_threads WHERE group_id=? AND thread_id=?",
                      (group_id, thread_id))
     return JSONResponse({"ok": True})
-
-
-# People
-
-@app.post("/people/quick")
-async def create_person_quick(name: str = Form(...)):
-    with get_conn() as conn:
-        emoji = _pick_emoji(conn)
-        cur = conn.execute(
-            "INSERT INTO people (name, emoji) VALUES (?,?)",
-            (name.strip(), emoji),
-        )
-        person_id = cur.lastrowid
-    _seed_defaults()
-    return JSONResponse({"id": person_id, "name": name.strip(), "emoji": emoji})
-
-
-@app.post("/people")
-async def create_person(name: str = Form(...)):
-    with get_conn() as conn:
-        emoji = _pick_emoji(conn)
-        conn.execute("INSERT INTO people (name, emoji) VALUES (?,?)", (name.strip(), emoji))
-    return RedirectResponse("/?tab=manage", status_code=303)
-
-
-@app.post("/people/{person_id}/update")
-async def update_person(person_id: int, name: str = Form(...), emoji: str = Form(...)):
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE people SET name=?, emoji=? WHERE id=?",
-            (name.strip(), emoji.strip(), person_id),
-        )
-    return RedirectResponse("/?tab=manage", status_code=303)
-
-
-@app.post("/people/{person_id}/delete")
-async def delete_person(person_id: int):
-    with get_conn() as conn:
-        person = conn.execute("SELECT name FROM people WHERE id=?", (person_id,)).fetchone()
-        if person and person["name"].lower() == "me":
-            return RedirectResponse("/?tab=manage", status_code=303)
-        open_count = conn.execute(
-            "SELECT COUNT(*) FROM tasks WHERE person_id=? AND status='open'", (person_id,)
-        ).fetchone()[0]
-        if open_count == 0:
-            conn.execute("DELETE FROM people WHERE id=?", (person_id,))
-    return RedirectResponse("/?tab=manage", status_code=303)
-
-
-# Export
-
-@app.get("/export/csv")
-async def export_csv():
-    today = date.today()
-    with get_conn() as conn:
-        people  = conn.execute("SELECT emoji, name FROM people ORDER BY id").fetchall()
-        threads = conn.execute("SELECT name FROM threads ORDER BY sort_order, created_at").fetchall()
-        groups  = conn.execute("SELECT g.name, g.icon, GROUP_CONCAT(th.name, '|') AS thread_names "
-                               "FROM groups g "
-                               "LEFT JOIN group_threads gt ON gt.group_id = g.id "
-                               "LEFT JOIN threads th ON th.id = gt.thread_id "
-                               "GROUP BY g.id ORDER BY g.sort_order, g.created_at").fetchall()
-        tasks   = conn.execute("""
-            SELECT th.name AS thread_name, t.description, t.status,
-                   p.name AS person_name, p.emoji AS person_emoji,
-                   t.due_date, t.effort, t.is_deadline,
-                   t.notes, t.closed_at
-            FROM tasks t
-            LEFT JOIN people p   ON t.person_id  = p.id
-            LEFT JOIN threads th ON t.thread_id  = th.id
-            ORDER BY th.sort_order, t.sort_order
-        """).fetchall()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    writer.writerow(["## PEOPLE"])
-    writer.writerow(["Emoji", "Name"])
-    for p in people:
-        writer.writerow([p["emoji"], p["name"]])
-
-    writer.writerow([])
-    writer.writerow(["## THREADS"])
-    writer.writerow(["Name"])
-    for t in threads:
-        writer.writerow([t["name"]])
-
-    writer.writerow([])
-    writer.writerow(["## GROUPS"])
-    writer.writerow(["Name", "Icon", "Threads (pipe-separated)"])
-    for g in groups:
-        writer.writerow([g["name"], g["icon"] or "", g["thread_names"] or ""])
-
-    writer.writerow([])
-    writer.writerow(["## TASKS"])
-    writer.writerow(["Thread", "Description", "Person Emoji", "Person Name",
-                     "Due Date", "Effort", "Is Deadline", "Status", "Closed At", "Notes"])
-    for row in tasks:
-        writer.writerow([
-            row["thread_name"] or "",
-            row["description"],
-            row["person_emoji"] or "",
-            row["person_name"] or "",
-            row["due_date"] or "",
-            row["effort"] or "",
-            "1" if row["is_deadline"] else "0",
-            row["status"],
-            row["closed_at"] or "",
-            row["notes"] or "",
-        ])
-
-    from datetime import datetime
-    filename = f"pingpong_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )

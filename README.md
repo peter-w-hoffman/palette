@@ -1,49 +1,55 @@
-# 🏓 Ping Pong
+# 🎨 Palette
 
-A lightweight task manager. Threads, people, groups, due dates.
+A lightweight personal task manager. Threads, groups, due dates, and deadlines — no assignees, no effort tags, just your tasks.
 
 ---
 
 ## Install
 
-**1. Clone and set up**
+**1. Set up**
 
 ```bash
-git clone https://github.com/MarinaMancoridis/PingPong.git
-cd PingPong
-python3 -m venv venv
-source venv/bin/activate
+cd ~/Palette
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 **2. Run**
 
 ```bash
-source venv/bin/activate   # skip if already active
+source .venv/bin/activate   # skip if already active
 uvicorn main:app --reload
 ```
 
-Open **[localhost:8000](http://localhost:8000)** in Chrome.
+Open **[localhost:8000](http://localhost:8000)** in Safari (or any browser).
 
 ---
 
-## Add to your Dock (Mac)
+## Run it as a standalone Mac app
 
-Ping Pong works as a standalone app — no browser chrome, lives in your Dock.
+A `Palette.app` launcher is included. Double-click it and Palette opens in its **own
+native window** — no browser, no tabs, no terminal. (It uses macOS's built-in WebKit
+via `pywebview`, started by `desktop.py`.) Closing the window stops the app.
 
-1. Open [localhost:8000](http://localhost:8000) in **Chrome**
-2. Click the **install icon** (⊕) in the address bar → **Install**
-3. The app opens in its own window. Find it in Launchpad or Spotlight (`Ping Pong`)
-4. Right-click its Dock icon → **Options → Keep in Dock**
+1. Double-click **`Palette.app`** (in this folder).
+2. Palette opens in a standalone window with a 🎨 Dock icon.
+3. To keep it handy: right-click its Dock icon → **Options → Keep in Dock**.
 
-Next time, just click the Dock icon — it starts the server automatically if you have it set up as a background service, or run `uvicorn main:app` first if you prefer manual control.
+> The project lives at `~/Palette` (outside macOS-protected folders like Desktop/
+> Documents, so it launches with no permission prompts). The launcher expects the
+> project at that path — if you move the folder, edit the `PROJECT` line in
+> `Palette.app/Contents/MacOS/Palette`.
+
+Prefer a browser instead? Just run `uvicorn main:app --reload` and open
+[localhost:8000](http://localhost:8000).
 
 ---
 
-## Tips
+## Features
 
-- **Threads** — group tasks by topic, project, or anything you like
-- **People** — assign tasks; filter to just your own with the **Me** button
-- **Effort** — tag tasks as Mindless / Standard / Intense; filter in Me mode
-- **Search** — find tasks by content or person name from the nav bar
-- **Export** — download a CSV snapshot from any thread's sidebar
+- **Threads** — group tasks by topic or project. Rename or delete a thread from its card header.
+- **Groups** — bundle threads into folders. Create from the sidebar; click a group's ✎ to rename it, add/remove threads, or delete it.
+- **Due dates & deadlines** — set ASAP / Anytime / a specific date; flag the important ones as deadlines and filter the sidebar to just those.
+- **Notes** — click a task to jot a note.
+- **Search** — find tasks by description or thread name from the nav bar.
