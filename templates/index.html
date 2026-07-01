@@ -282,20 +282,28 @@
     .tn-add:hover { color: #4a90e2; }
 
     /* ═══ THREAD DETAIL (middle) ═════════════════════════════════════════════ */
-    .thread-detail {
-      columns: 2;
-      column-gap: 1rem;
+    /* Two real, independent columns: items stay in the column & spot you drop
+       them (no auto-balancing reflow like CSS multi-column). */
+    .pane-cols {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .pane-col {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 60px;      /* keeps an empty column droppable */
+    }
+    @media (max-width: 680px) {
+      .pane-cols { flex-direction: column; }
     }
 
     .thread-detail-empty {
-      column-span: all;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       min-height: 300px; gap: 0.5rem;
       color: #ccc; font-size: 0.9rem;
     }
-
-    #nt-form { column-span: all; }
 
     .thread-detail-view {
       break-inside: avoid;
@@ -907,6 +915,12 @@
         </form>
       </div>
 
+      <!-- two real columns; JS places open threads / group boxes into these -->
+      <div class="pane-cols" id="pane-cols">
+        <div class="pane-col" id="pane-col-0"></div>
+        <div class="pane-col" id="pane-col-1"></div>
+      </div>
+
     </div>
 
     <!-- Right: due sidebar -->
@@ -1112,47 +1126,55 @@
   const _pool   = document.getElementById('thread-detail-pool');
 
   const _zonePool = document.getElementById('zone-pool');
+  const _cols = [document.getElementById('pane-col-0'), document.getElementById('pane-col-1')];
+
+  // The column that's currently shortest — used for balanced initial placement
+  // of newly-opened items. Once placed, items stay put until you drag them.
+  function _shortestCol() {
+    return _cols.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a));
+  }
 
   function _syncEmptyState() {
-    // counts loose cards and cards inside boxes (querySelectorAll is deep)
-    const hasVisible = [..._detail.querySelectorAll('.thread-detail-view')].some(v => v.style.display !== 'none');
+    const hasVisible = _cols.some(col =>
+      [...col.querySelectorAll('.thread-detail-view')].some(v => v.style.display !== 'none'));
     document.getElementById('thread-detail-empty').style.display =
       (!hasVisible && document.getElementById('nt-form').style.display === 'none') ? '' : 'none';
   }
 
   function _ensureZone(gid) {
     const zone = document.getElementById('zone-' + gid);
-    if (zone && zone.parentElement !== _detail) _detail.appendChild(zone);
+    if (zone && !(zone.parentElement && zone.parentElement.classList.contains('pane-col')))
+      _shortestCol().appendChild(zone);
     return zone;
   }
   function _retractZoneIfEmpty(gid) {
     const zone = document.getElementById('zone-' + gid);
     if (zone && !zone.querySelector('.zone-body').children.length) _zonePool.appendChild(zone);
   }
-  // Put a thread card where it belongs: inside its group's box, or loose on the canvas.
+  // Put a thread card where it belongs: inside its group's box, or loose in a column.
   function placeCard(card) {
     const gid = card.dataset.groupId;
     if (gid && document.getElementById('zone-' + gid)) {
       _ensureZone(gid).querySelector('.zone-body').appendChild(card);
     } else {
-      _detail.appendChild(card);
+      _shortestCol().appendChild(card);
     }
   }
 
-  // Persist the canvas layout: top-level order (loose cards + boxes), per-box
-  // order, and which threads are open. Membership itself lives on the server.
+  // Persist layout: per-column order of top-level items (loose cards + boxes),
+  // per-box thread order, and which threads are open. Membership is server-side.
   function saveLayout() {
-    const order = [..._detail.children]
+    const cols = _cols.map(col => [...col.children]
       .filter(c => c.classList.contains('thread-detail-view') || c.classList.contains('group-zone'))
-      .map(c => c.classList.contains('group-zone') ? 'z:' + c.dataset.groupId : 't:' + c.id.replace('td-view-', ''));
+      .map(c => c.classList.contains('group-zone') ? 'z:' + c.dataset.groupId : 't:' + c.id.replace('td-view-', '')));
     const zones = {};
     document.querySelectorAll('.group-zone').forEach(z => {
       zones[z.dataset.groupId] = [...z.querySelectorAll('.zone-body > .thread-detail-view')]
         .map(c => c.id.replace('td-view-', ''));
     });
-    try { localStorage.setItem('pp-layout', JSON.stringify({ order, zones, open: [..._openThreads] })); } catch(e) {}
+    try { localStorage.setItem('pp-layout', JSON.stringify({ cols, zones, open: [..._openThreads] })); } catch(e) {}
   }
-  function _sortThreadsByHeight() {}  // masonry auto-packing removed; layout is user-controlled now
+  function _sortThreadsByHeight() {}  // no auto-packing; layout is user-controlled
 
   function selectThread(id) {
     id = String(id);
@@ -1230,12 +1252,21 @@
       if (!body) return;
       ids.forEach(id => { const c = document.getElementById('td-view-' + id); if (c && body.contains(c)) body.appendChild(c); });
     });
-    // apply saved top-level order
-    (data.order || []).forEach(tok => {
-      const el = tok.startsWith('z:')
-        ? document.getElementById('zone-' + tok.slice(2))
-        : document.getElementById('td-view-' + tok.slice(2));
-      if (el && el.parentElement === _detail) _detail.appendChild(el);
+    // apply saved per-column placement + order of the top-level items
+    (data.cols || []).forEach((tokens, i) => {
+      const col = _cols[i];
+      if (!col) return;
+      tokens.forEach(tok => {
+        if (tok.startsWith('z:')) {
+          const zone = document.getElementById('zone-' + tok.slice(2));
+          // only reposition a box that's actually shown (holds open threads)
+          if (zone && zone.querySelector('.zone-body').children.length) col.appendChild(zone);
+        } else {
+          const card = document.getElementById('td-view-' + tok.slice(2));
+          // only reposition loose cards (not ones now living inside a box)
+          if (card && !card.closest('.zone-body')) col.appendChild(card);
+        }
+      });
     });
     saveLayout();
   })();
@@ -1803,12 +1834,16 @@
     }
   }
 
-  Sortable.create(_detail, {
-    group: { name: 'pane', pull: true, put: true },
-    draggable: '.thread-detail-view, .group-zone',
-    handle: '.tdv-drag',
-    animation: 150,
-    onEnd: onThreadDrop,
+  // Each real column is its own drop zone. Items dropped stay in that column
+  // and position — no auto-balancing reflow.
+  _cols.forEach(col => {
+    Sortable.create(col, {
+      group: { name: 'pane', pull: true, put: true },
+      draggable: '.thread-detail-view, .group-zone',
+      handle: '.tdv-drag',
+      animation: 150,
+      onEnd: onThreadDrop,
+    });
   });
   document.querySelectorAll('.zone-body').forEach(body => {
     Sortable.create(body, {
