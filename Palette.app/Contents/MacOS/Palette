@@ -14,4 +14,11 @@ if [ ! -x "$PY" ]; then
   exit 1
 fi
 
+# On Apple Silicon, macOS may otherwise launch this app under x86_64 (Rosetta),
+# which can't load the arm64 packages that setup.command installed. Force the
+# Mac's native architecture so the runtime matches the installed packages.
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+  exec arch -arm64 "$PY" "$PROJECT/desktop.py"
+fi
+
 exec "$PY" "$PROJECT/desktop.py"

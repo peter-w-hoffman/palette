@@ -15,12 +15,21 @@ if ! command -v python3 >/dev/null 2>&1; then
   echo "Press any key to close…"; read -n 1 -s; exit 1
 fi
 
+# On Apple Silicon, pin everything to the Mac's native architecture (arm64) so
+# the installed packages match how the app runs. Prevents "incompatible
+# architecture (arm64 vs x86_64)" errors caused by the universal system Python.
+ARCH=""
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then ARCH="arch -arm64"; fi
+
+# Start clean so a previously half-built or wrong-arch environment can't linger.
+rm -rf .venv
+
 echo "• Creating a private Python environment (.venv)…"
-python3 -m venv .venv || { echo "❌ Could not create the environment."; echo "Press any key…"; read -n 1 -s; exit 1; }
+$ARCH python3 -m venv .venv || { echo "❌ Could not create the environment."; echo "Press any key…"; read -n 1 -s; exit 1; }
 
 echo "• Installing what Palette needs (this can take a minute)…"
-./.venv/bin/python -m pip install --quiet --upgrade pip
-./.venv/bin/pip install --quiet -r requirements.txt || {
+$ARCH ./.venv/bin/python -m pip install --quiet --upgrade pip
+$ARCH ./.venv/bin/python -m pip install --quiet -r requirements.txt || {
   echo "❌ Install failed — check your internet connection and run this again."
   echo "Press any key…"; read -n 1 -s; exit 1; }
 

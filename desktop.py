@@ -45,6 +45,18 @@ def _serve():
         log(f"server error: {e!r}")
 
 
+def _alert(message):
+    try:
+        import subprocess
+        subprocess.run([
+            "osascript", "-e",
+            f'display dialog "{message}" buttons {{"OK"}} default button "OK" '
+            f'with title "Palette" with icon caution',
+        ], check=False)
+    except Exception:
+        pass
+
+
 def main():
     log(f"launch; cwd={os.getcwd()}")
     if not _port_open():
@@ -53,7 +65,15 @@ def main():
             if _port_open():
                 break
             time.sleep(0.2)
-    log(f"server up={_port_open()}")
+    up = _port_open()
+    log(f"server up={up}")
+
+    # Don't show a blank window if the server never started — say what to do.
+    if not up:
+        _alert("Palette could not start its background server. "
+               "Please run setup.command again. "
+               "Technical details are in /tmp/palette-app.log")
+        return
 
     try:
         import webview
